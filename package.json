@@ -1,0 +1,36 @@
+{
+  "name": "voicelink-outbound",
+  "version": "0.1.0",
+  "description": "Outbound AI calling test harness (VoiceLink SIP trunk + ElevenLabs)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "config:check": "tsx src/config.ts",
+    "auth:check": "tsx src/client.ts",
+    "agent:create": "tsx src/agent.ts",
+    "log:test": "tsx src/logger.ts",
+    "webhook": "tsx src/webhook.ts",
+    "serve": "tsx src/webhook.ts",
+    "dial": "tsx src/call.ts",
+    "provision": "tsx src/provision.ts",
+    "dial:trials": "tsx src/dial-trials.ts",
+    "retell:config": "tsx src/retell/config.ts",
+    "retell:auth": "tsx src/retell/client.ts",
+    "retell:agent": "tsx src/retell/agent.ts",
+    "retell:import": "tsx src/retell/import-number.ts",
+    "retell:voice": "tsx src/retell/manage.ts",
+    "retell:dial": "tsx src/retell/call.ts",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1"
+  }
+}
