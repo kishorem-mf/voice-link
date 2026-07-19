@@ -108,6 +108,40 @@ export async function updateAgentPrompt(
 }
 
 /**
+ * Call limits (billing safety). `maxDurationMs` force-ends any call at N ms
+ * (Retell allows 60000–7200000). `silenceMs` ends the call N ms after the user
+ * goes silent following agent speech. These cap runaway calls where the other
+ * party forgets to hang up.
+ */
+export interface CallLimits {
+  maxDurationMs: number;
+  silenceMs: number;
+}
+
+export async function getCallLimits(agentId: string): Promise<CallLimits> {
+  const a = await call<any>("GET", `/get-agent/${agentId}`);
+  return {
+    maxDurationMs: a.max_call_duration_ms ?? 0,
+    silenceMs: a.end_call_after_silence_ms ?? 0,
+  };
+}
+
+export async function updateCallLimits(
+  agentId: string,
+  maxDurationMs: number,
+  silenceMs: number,
+): Promise<CallLimits> {
+  const a = await call<any>("PATCH", `/update-agent/${agentId}`, {
+    max_call_duration_ms: maxDurationMs,
+    end_call_after_silence_ms: silenceMs,
+  });
+  return {
+    maxDurationMs: a.max_call_duration_ms ?? maxDurationMs,
+    silenceMs: a.end_call_after_silence_ms ?? silenceMs,
+  };
+}
+
+/**
  * Ready-made persona templates for common Indian/Hinglish outbound use cases.
  * Selecting one in the UI fills the prompt + first-message fields (still
  * editable before saving). Purely server-side data.

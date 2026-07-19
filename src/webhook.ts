@@ -24,6 +24,8 @@ import {
   updatePostCallModel,
   getAgentPrompt,
   updateAgentPrompt,
+  getCallLimits,
+  updateCallLimits,
   LANGUAGES,
   MODELS,
   POST_CALL_MODELS,
@@ -312,6 +314,37 @@ export function createApp() {
     }
     try {
       res.json(await updateAgentPrompt(agentId, prompt, firstMessage));
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Current call limits (billing safety). */
+  app.get("/api/retell/agent/limits", async (_req: Request, res: Response) => {
+    const agentId = process.env.RETELL_AGENT_ID?.trim();
+    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
+    try {
+      res.json(await getCallLimits(agentId));
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Update call limits. Body: { maxDurationMs, silenceMs }. */
+  app.patch("/api/retell/agent/limits", async (req: Request, res: Response) => {
+    const agentId = process.env.RETELL_AGENT_ID?.trim();
+    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
+    const maxDurationMs = Number(req.body?.maxDurationMs);
+    const silenceMs = Number(req.body?.silenceMs);
+    // Retell bounds: max duration 60s–7200s; silence >=10s.
+    if (!Number.isFinite(maxDurationMs) || maxDurationMs < 60000 || maxDurationMs > 7200000) {
+      return res.status(400).json({ error: "maxDurationMs must be 60000–7200000 (1–120 min)" });
+    }
+    if (!Number.isFinite(silenceMs) || silenceMs < 10000) {
+      return res.status(400).json({ error: "silenceMs must be at least 10000 (10s)" });
+    }
+    try {
+      res.json(await updateCallLimits(agentId, maxDurationMs, silenceMs));
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }

@@ -6,6 +6,7 @@ import {
   type ModelOption,
   type PostCallModelOption,
   type PersonaPreset,
+  type CallLimits,
 } from "../api";
 
 export function Settings() {
@@ -47,6 +48,13 @@ export function Settings() {
   const [savingPersona, setSavingPersona] = useState(false);
   const [personaMsg, setPersonaMsg] = useState<string | null>(null);
 
+  // Call limits state (minutes / seconds for the UI)
+  const [curLimits, setCurLimits] = useState<CallLimits | null>(null);
+  const [maxMin, setMaxMin] = useState<number>(5);
+  const [silenceSec, setSilenceSec] = useState<number>(30);
+  const [savingLimits, setSavingLimits] = useState(false);
+  const [limitsMsg, setLimitsMsg] = useState<string | null>(null);
+
   useEffect(() => {
     Promise.all([
       api.voices(),
@@ -56,8 +64,9 @@ export function Settings() {
       api.postCallModels(),
       api.personas(),
       api.getPrompt(),
+      api.getLimits(),
     ])
-      .then(([vs, agent, langs, mdls, pcs, prs, persona]) => {
+      .then(([vs, agent, langs, mdls, pcs, prs, persona, limits]) => {
         setVoices(vs);
         setCurrent(agent.voiceId);
         setSelected(agent.voiceId);
@@ -75,9 +84,26 @@ export function Settings() {
         setCurFirst(persona.firstMessage);
         setPrompt(persona.prompt);
         setFirstMsg(persona.firstMessage);
+        setCurLimits(limits);
+        setMaxMin(Math.round(limits.maxDurationMs / 60000));
+        setSilenceSec(Math.round(limits.silenceMs / 1000));
       })
       .catch((e) => setError(e.message));
   }, []);
+
+  async function saveLimits() {
+    setSavingLimits(true);
+    setLimitsMsg(null);
+    try {
+      const saved = await api.setLimits(maxMin * 60000, silenceSec * 1000);
+      setCurLimits(saved);
+      setLimitsMsg("Call limits updated. New calls will use them.");
+    } catch (e) {
+      setLimitsMsg(`❌ ${(e as Error).message}`);
+    } finally {
+      setSavingLimits(false);
+    }
+  }
 
   function applyPreset(name: string) {
     const p = presets.find((x) => x.name === name);
@@ -240,6 +266,58 @@ export function Settings() {
       {personaMsg && (
         <div className="hint" style={{ color: personaMsg.startsWith("❌") ? "var(--bad)" : "var(--ok)" }}>
           {personaMsg.startsWith("❌") ? personaMsg : `✅ ${personaMsg}`}
+        </div>
+      )}
+    </div>
+
+    <div className="panel">
+      <h2>Call limits (billing safety)</h2>
+      <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
+        Auto-end calls so a caller who forgets to hang up can't run up your bill.
+        {curLimits && (
+          <> Current: max <code>{Math.round(curLimits.maxDurationMs / 60000)} min</code>,
+          silence <code>{Math.round(curLimits.silenceMs / 1000)}s</code>.</>
+        )}
+      </div>
+      <div className="row">
+        <label className="muted" style={{ fontSize: 13 }}>Max call duration (min)</label>
+        <input
+          type="number"
+          min={1}
+          max={120}
+          style={{ width: 90 }}
+          value={maxMin}
+          onChange={(e) => setMaxMin(Number(e.target.value))}
+        />
+        <label className="muted" style={{ fontSize: 13 }}>End after silence (sec)</label>
+        <input
+          type="number"
+          min={10}
+          style={{ width: 90 }}
+          value={silenceSec}
+          onChange={(e) => setSilenceSec(Number(e.target.value))}
+        />
+        <button
+          className="primary"
+          onClick={saveLimits}
+          disabled={
+            savingLimits ||
+            !curLimits ||
+            (maxMin * 60000 === curLimits.maxDurationMs && silenceSec * 1000 === curLimits.silenceMs) ||
+            maxMin < 1 ||
+            silenceSec < 10
+          }
+        >
+          {savingLimits ? "Saving…" : "Save limits"}
+        </button>
+      </div>
+      <div className="hint">
+        A stuck call ends at the max duration, or {silenceSec}s after the person goes
+        silent (the agent nudges "are you there?" first). Retell allows 1–120 min.
+      </div>
+      {limitsMsg && (
+        <div className="hint" style={{ color: limitsMsg.startsWith("❌") ? "var(--bad)" : "var(--ok)" }}>
+          {limitsMsg.startsWith("❌") ? limitsMsg : `✅ ${limitsMsg}`}
         </div>
       )}
     </div>

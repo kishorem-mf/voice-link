@@ -69,6 +69,12 @@ export async function createAgent(
       voice_id: opts.voiceId ?? "11labs-Adrian",
       agent_name: opts.name,
       language: opts.language ?? "en-US",
+      // Billing safety: cap runaway calls (Retell defaults are 60min max /
+      // 10min silence). See docs/working-configuration.md.
+      max_call_duration_ms: 300000, // 5 min hard cap
+      end_call_after_silence_ms: 30000, // end 30s after the user goes silent
+      reminder_trigger_ms: 8000, // nudge "are you there?" after 8s silence
+      reminder_max_count: 2,
     },
     apiKey,
   );

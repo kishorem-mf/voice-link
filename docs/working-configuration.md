@@ -113,6 +113,27 @@ WEBHOOK_PORT=3000
 
 ---
 
+## Call limits — billing safeguard (runaway-call protection)
+
+If the person on the other end forgets to hang up, the call (and billing on both
+Retell and VoiceLink) keeps running. Retell's defaults are dangerously loose
+(**60-min** max duration, **10-min** silence). Two agent-level settings cap this:
+
+| Setting (Retell field) | Our value | Retell default | Purpose |
+|---|---|---|---|
+| Max call duration (`max_call_duration_ms`) | **300000 (5 min)** | 3600000 (60 min) | Hard cap — force-ends any call at N ms |
+| End after silence (`end_call_after_silence_ms`) | **30000 (30 s)** | ~600000 (10 min) | Ends the call N ms after the user goes silent |
+| Reminder (`reminder_trigger_ms` / `reminder_max_count`) | 8000 / 2 | — | Agent nudges "are you there?" twice before the silence timeout ends the call |
+
+Effect: worst-case billing per stuck call drops from **~60 min → 5 min**, and a
+silent/abandoned call ends in ~30 s. Retell allows max duration **1–120 min**.
+
+- **Configurable** in the UI: Settings → **Call limits (billing safety)**.
+- **New agents** get these automatically (`createAgent` in [src/retell/agent.ts](src/retell/agent.ts)).
+- Retell terminating the call also ends the VoiceLink trunk leg (it sends SIP BYE),
+  so this one control protects billing on both sides. If VoiceLink also offers an
+  account-level max-call-duration, set it as a backstop.
+
 ## Known constraints
 1. **Concurrency = 1 channel / 1 CPS.** Only one call at a time. A second simultaneous dial fails (timeout / SIP 603 "declined") because the channel is busy — this is expected, not a bug. Purchase more channels to scale.
 2. **Compliance.** The DID is a standard mobile number, **not** on a DLT 140/160 series. Do not run bulk cold-calling at volume until DLT registration is approved.

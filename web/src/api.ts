@@ -97,6 +97,11 @@ export interface Persona {
   firstMessage: string;
 }
 
+export interface CallLimits {
+  maxDurationMs: number;
+  silenceMs: number;
+}
+
 async function json<T>(res: Response): Promise<T> {
   const text = await res.text();
   const body = text ? JSON.parse(text) : {};
@@ -158,4 +163,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, firstMessage }),
     }).then(json<Persona>),
+  getLimits: () => fetch("/api/retell/agent/limits").then(json<CallLimits>),
+  setLimits: (maxDurationMs: number, silenceMs: number) =>
+    fetch("/api/retell/agent/limits", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maxDurationMs, silenceMs }),
+    }).then(json<CallLimits>),
 };

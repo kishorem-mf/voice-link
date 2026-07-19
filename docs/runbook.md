@@ -104,6 +104,7 @@ read-model name is silently ignored).
 |---|---|---|
 | `401` on Retell endpoints | Wrong/expired key | Check `RETELL_API_KEY` (`npm run retell:auth`) |
 | Call status `not_connected` / `dial_no_answer` | Rang out with no answer, **or** not reaching the handset | If it didn't ring at all, set `RETELL_TECH_PREFIX=45454`; otherwise just answer/retry |
+| Call runs long / caller forgot to hang up | Retell defaults are 60-min max / 10-min silence | Settings → **Call limits**: we cap at 5-min max + 30-s silence auto-end. Lower if needed (Retell min 1 min / 10 s) |
 | `create-phone-call` rejects the number | `from_number` not imported into Retell | Run `npm run retell:import` to import the DID + bind the outbound agent |
 | UI shows no calls / recording missing | Recording not ready yet, or agent id mismatch | Recording appears once the call ends; confirm `RETELL_AGENT_ID` matches the number's outbound agent |
 
