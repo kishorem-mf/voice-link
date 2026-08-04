@@ -7,7 +7,11 @@ import { logOutcome, readOutcomes, type CallOutcome } from "./logger.js";
 import { getConfig } from "./config.js";
 // Web API runs on Retell (the working provider). ElevenLabs modules remain for
 // CLI use; only the browser-facing API is switched here.
-import { getRetellConfig } from "./retell/config.js";
+import {
+  getRetellConfig,
+  getRetellAgentIds,
+  getRetellInboundAgentId,
+} from "./retell/config.js";
 import { placeCall } from "./retell/call.js";
 import {
   listConversations,
@@ -68,6 +72,23 @@ export function parsePostCallWebhook(body: any): CallOutcome {
 }
 
 /** Build the Express app (exported so it can be unit-tested without listening). */
+/**
+ * Apply a per-agent update across ALL synced agents (outbound + inbound if set)
+ * so shared settings — voice, model, language, post-call model, call limits —
+ * never drift between them. Returns the last result (they're identical).
+ */
+async function syncAgents<T>(fn: (agentId: string) => Promise<T>): Promise<T> {
+  let last: T | undefined;
+  for (const id of getRetellAgentIds()) last = await fn(id);
+  return last as T;
+}
+
+/** Resolve the agent id for a persona direction (defaults to outbound). */
+function personaAgentId(direction?: unknown): string | undefined {
+  if (direction === "inbound") return getRetellInboundAgentId();
+  return process.env.RETELL_AGENT_ID?.trim();
+}
+
 export function createApp() {
   const app = express();
   app.use(express.json());
@@ -220,14 +241,12 @@ export function createApp() {
     }
   });
 
-  /** Update the agent's voice. Body: { voiceId }. */
+  /** Update the voice on ALL synced agents. Body: { voiceId }. */
   app.patch("/api/retell/agent/voice", async (req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
     const voiceId = (req.body?.voiceId ?? "").trim();
     if (!voiceId) return res.status(400).json({ error: "voiceId required" });
     try {
-      res.json({ voiceId: await updateAgentVoice(agentId, voiceId) });
+      res.json({ voiceId: await syncAgents((id) => updateAgentVoice(id, voiceId)) });
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }
@@ -238,14 +257,12 @@ export function createApp() {
     res.json(LANGUAGES);
   });
 
-  /** Update the agent's language. Body: { language }. */
+  /** Update the language on ALL synced agents. Body: { language }. */
   app.patch("/api/retell/agent/language", async (req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
     const language = (req.body?.language ?? "").trim();
     if (!language) return res.status(400).json({ error: "language required" });
     try {
-      res.json({ language: await updateAgentLanguage(agentId, language) });
+      res.json({ language: await syncAgents((id) => updateAgentLanguage(id, language)) });
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }
@@ -256,14 +273,12 @@ export function createApp() {
     res.json(MODELS);
   });
 
-  /** Update the agent's LLM model. Body: { model }. */
+  /** Update the LLM model on ALL synced agents. Body: { model }. */
   app.patch("/api/retell/agent/model", async (req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
     const model = (req.body?.model ?? "").trim();
     if (!model) return res.status(400).json({ error: "model required" });
     try {
-      res.json({ model: await updateAgentModel(agentId, model) });
+      res.json({ model: await syncAgents((id) => updateAgentModel(id, model)) });
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }
@@ -274,14 +289,12 @@ export function createApp() {
     res.json(POST_CALL_MODELS);
   });
 
-  /** Update the agent's post-call analysis model. Body: { model }. */
+  /** Update the post-call model on ALL synced agents. Body: { model }. */
   app.patch("/api/retell/agent/post-call-model", async (req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
     const model = (req.body?.model ?? "").trim();
     if (!model) return res.status(400).json({ error: "model required" });
     try {
-      res.json({ model: await updatePostCallModel(agentId, model) });
+      res.json({ model: await syncAgents((id) => updatePostCallModel(id, model)) });
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }
@@ -292,10 +305,16 @@ export function createApp() {
     res.json(PERSONA_PRESETS);
   });
 
-  /** Current agent persona (system prompt + first message). */
-  app.get("/api/retell/agent/prompt", async (_req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
+  /**
+   * Persona (system prompt + first message) for a direction. Personas differ
+   * per direction (outbound = sales, inbound = receptionist), so they are NOT
+   * synced. ?direction=outbound (default) | inbound.
+   */
+  app.get("/api/retell/agent/prompt", async (req: Request, res: Response) => {
+    const agentId = personaAgentId(req.query.direction);
+    if (!agentId) {
+      return res.status(400).json({ error: "No agent for that direction (is RETELL_INBOUND_AGENT_ID set?)" });
+    }
     try {
       res.json(await getAgentPrompt(agentId));
     } catch (err) {
@@ -303,10 +322,12 @@ export function createApp() {
     }
   });
 
-  /** Update the agent's persona. Body: { prompt, firstMessage }. */
+  /** Update a direction's persona. Body: { prompt, firstMessage, direction? }. */
   app.patch("/api/retell/agent/prompt", async (req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
+    const agentId = personaAgentId(req.body?.direction);
+    if (!agentId) {
+      return res.status(400).json({ error: "No agent for that direction (is RETELL_INBOUND_AGENT_ID set?)" });
+    }
     const prompt = (req.body?.prompt ?? "").trim();
     const firstMessage = (req.body?.firstMessage ?? "").trim();
     if (!prompt || !firstMessage) {
@@ -317,6 +338,11 @@ export function createApp() {
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }
+  });
+
+  /** Which directions are available (for the UI toggle). */
+  app.get("/api/retell/directions", (_req: Request, res: Response) => {
+    res.json({ outbound: true, inbound: !!getRetellInboundAgentId() });
   });
 
   /** Current call limits (billing safety). */
@@ -330,10 +356,8 @@ export function createApp() {
     }
   });
 
-  /** Update call limits. Body: { maxDurationMs, silenceMs }. */
+  /** Update call limits on ALL synced agents. Body: { maxDurationMs, silenceMs }. */
   app.patch("/api/retell/agent/limits", async (req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
     const maxDurationMs = Number(req.body?.maxDurationMs);
     const silenceMs = Number(req.body?.silenceMs);
     // Retell bounds: max duration 60s–7200s; silence >=10s.
@@ -344,7 +368,7 @@ export function createApp() {
       return res.status(400).json({ error: "silenceMs must be at least 10000 (10s)" });
     }
     try {
-      res.json(await updateCallLimits(agentId, maxDurationMs, silenceMs));
+      res.json(await syncAgents((id) => updateCallLimits(id, maxDurationMs, silenceMs)));
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }

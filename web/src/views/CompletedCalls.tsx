@@ -58,6 +58,7 @@ export function CompletedCalls() {
             <thead>
               <tr>
                 <th>Started (IST)</th>
+                <th>Direction</th>
                 <th>Status</th>
                 <th>Duration</th>
                 <th>Messages</th>
@@ -72,6 +73,11 @@ export function CompletedCalls() {
                   onClick={() => setSelected(c.conversationId)}
                 >
                   <td>{fmtTimeIST(c.startUnix)}</td>
+                  <td>
+                    <span className="badge neutral">
+                      {c.direction === "inbound" ? "📥 Inbound" : c.direction === "outbound" ? "📤 Outbound" : "—"}
+                    </span>
+                  </td>
                   <td><span className={`badge ${statusKind(c.status)}`}>{c.status}</span></td>
                   <td>{fmtDuration(c.durationSecs)}</td>
                   <td>{c.messageCount || "—"}</td>

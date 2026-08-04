@@ -53,6 +53,22 @@ export function getRetellConfig(): RetellConfig {
   };
 }
 
+/** Optional inbound agent id (used for calls that come IN to the DID). */
+export function getRetellInboundAgentId(): string | undefined {
+  return process.env.RETELL_INBOUND_AGENT_ID?.trim() || undefined;
+}
+
+/**
+ * All agent ids that UI settings (voice/model/language/limits) should sync to:
+ * the outbound agent, plus the inbound agent if configured.
+ */
+export function getRetellAgentIds(): string[] {
+  const ids = [required("RETELL_AGENT_ID", "Retell outbound agent id")];
+  const inbound = getRetellInboundAgentId();
+  if (inbound && inbound !== ids[0]) ids.push(inbound);
+  return ids;
+}
+
 /** Mask a secret for safe logging. */
 export function mask(secret: string): string {
   if (secret.length <= 6) return "****";

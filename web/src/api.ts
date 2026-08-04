@@ -29,6 +29,7 @@ export interface ConversationSummary {
   durationSecs: number;
   messageCount: number;
   startUnix: number;
+  direction?: string;
 }
 
 export interface TranscriptTurn {
@@ -156,12 +157,15 @@ export const api = {
       body: JSON.stringify({ model }),
     }).then(json<{ model: string }>),
   personas: () => fetch("/api/retell/personas").then(json<PersonaPreset[]>),
-  getPrompt: () => fetch("/api/retell/agent/prompt").then(json<Persona>),
-  setPrompt: (prompt: string, firstMessage: string) =>
+  directions: () =>
+    fetch("/api/retell/directions").then(json<{ outbound: boolean; inbound: boolean }>),
+  getPrompt: (direction: "outbound" | "inbound" = "outbound") =>
+    fetch(`/api/retell/agent/prompt?direction=${direction}`).then(json<Persona>),
+  setPrompt: (prompt: string, firstMessage: string, direction: "outbound" | "inbound" = "outbound") =>
     fetch("/api/retell/agent/prompt", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, firstMessage }),
+      body: JSON.stringify({ prompt, firstMessage, direction }),
     }).then(json<Persona>),
   getLimits: () => fetch("/api/retell/agent/limits").then(json<CallLimits>),
   setLimits: (maxDurationMs: number, silenceMs: number) =>
