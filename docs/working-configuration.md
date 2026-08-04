@@ -113,6 +113,25 @@ WEBHOOK_PORT=3000
 
 ---
 
+## Inbound + outbound agents (two agents, synced)
+
+The DID runs **two Retell agents**, both assigned on the phone number:
+
+| Direction | Agent | Persona | .env |
+|---|---|---|---|
+| **Outbound** (calls you make) | `agent_7853768…` (VoiceLink-Outbound-Retell) | Sales — "Meera from Prakto", books demos | `RETELL_AGENT_ID` |
+| **Inbound** (calls to the DID) | `agent_8ef75006…` (VoiceLink-Inbound-Retell) | Receptionist — greets patients, books, no medical advice | `RETELL_INBOUND_AGENT_ID` |
+
+- **Setup:** `npm run retell:setup-inbound` creates the inbound agent mirroring outbound's
+  voice/model/language/limits, then assigns it to the DID's `inbound_agents` (array form —
+  the single `inbound_agent_id` field is deprecated as of 2026-03-31).
+- **Shared settings are synced:** changing **voice, LLM model, language, post-call model, or
+  call limits** in the UI applies to **both** agents (via `syncAgents` over `getRetellAgentIds()`),
+  so they never drift.
+- **Personas are per-direction** (not synced) — Settings → Agent persona has an
+  **Editing: Outbound / Inbound** toggle. Preset "Clinic Receptionist (Inbound)" seeds inbound.
+- Why two agents: inbound patients must hear a *receptionist*, not the outbound sales pitch.
+
 ## Call limits — billing safeguard (runaway-call protection)
 
 If the person on the other end forgets to hang up, the call (and billing on both

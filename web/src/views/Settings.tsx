@@ -47,6 +47,23 @@ export function Settings() {
   const [firstMsg, setFirstMsg] = useState<string>("");
   const [savingPersona, setSavingPersona] = useState(false);
   const [personaMsg, setPersonaMsg] = useState<string | null>(null);
+  const [direction, setDirection] = useState<"outbound" | "inbound">("outbound");
+  const [hasInbound, setHasInbound] = useState(false);
+
+  // Load a direction's persona into the editor.
+  async function loadPersona(dir: "outbound" | "inbound") {
+    setDirection(dir);
+    setPersonaMsg(null);
+    try {
+      const p = await api.getPrompt(dir);
+      setCurPrompt(p.prompt);
+      setCurFirst(p.firstMessage);
+      setPrompt(p.prompt);
+      setFirstMsg(p.firstMessage);
+    } catch (e) {
+      setPersonaMsg(`❌ ${(e as Error).message}`);
+    }
+  }
 
   // Call limits state (minutes / seconds for the UI)
   const [curLimits, setCurLimits] = useState<CallLimits | null>(null);
@@ -65,8 +82,10 @@ export function Settings() {
       api.personas(),
       api.getPrompt(),
       api.getLimits(),
+      api.directions(),
     ])
-      .then(([vs, agent, langs, mdls, pcs, prs, persona, limits]) => {
+      .then(([vs, agent, langs, mdls, pcs, prs, persona, limits, dirs]) => {
+        setHasInbound(dirs.inbound);
         setVoices(vs);
         setCurrent(agent.voiceId);
         setSelected(agent.voiceId);
@@ -117,10 +136,10 @@ export function Settings() {
     setSavingPersona(true);
     setPersonaMsg(null);
     try {
-      const saved = await api.setPrompt(prompt, firstMsg);
+      const saved = await api.setPrompt(prompt, firstMsg, direction);
       setCurPrompt(saved.prompt);
       setCurFirst(saved.firstMessage);
-      setPersonaMsg("Persona updated. New calls will use it.");
+      setPersonaMsg(`${direction === "inbound" ? "Inbound" : "Outbound"} persona updated. New calls will use it.`);
     } catch (e) {
       setPersonaMsg(`❌ ${(e as Error).message}`);
     } finally {
@@ -212,9 +231,23 @@ export function Settings() {
     <div className="panel">
       <h2>Agent persona</h2>
       <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
-        Defines how the agent behaves and what it says first. Pick a template to start,
-        then edit. Applies to the live agent on the next call.
+        Defines how the agent behaves and what it says first. Outbound and inbound have
+        separate personas (sales vs receptionist). Voice, model, language & limits are
+        shared. Applies on the next call.
       </div>
+      {hasInbound && (
+        <div className="row" style={{ marginBottom: 12 }}>
+          <label className="muted" style={{ fontSize: 13 }}>Editing</label>
+          <select
+            value={direction}
+            onChange={(e) => loadPersona(e.target.value as "outbound" | "inbound")}
+            style={{ minWidth: 180 }}
+          >
+            <option value="outbound">Outbound (calls you make)</option>
+            <option value="inbound">Inbound (calls you receive)</option>
+          </select>
+        </div>
+      )}
       <div className="row" style={{ marginBottom: 12 }}>
         <label className="muted" style={{ fontSize: 13 }}>Template</label>
         <select defaultValue="" onChange={(e) => applyPreset(e.target.value)} style={{ minWidth: 240 }}>

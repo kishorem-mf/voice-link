@@ -1,4 +1,4 @@
-import { getRetellApiKey, getRetellBaseUrl } from "./config.js";
+import { getRetellApiKey, getRetellBaseUrl, getRetellAgentIds } from "./config.js";
 
 /**
  * Retell call reads — list, detail, and recording — normalized to the same
@@ -12,6 +12,7 @@ export interface CallSummary {
   durationSecs: number;
   messageCount: number;
   startUnix: number;
+  direction?: string;
 }
 
 export interface TranscriptTurn {
@@ -59,11 +60,17 @@ async function retell<T>(method: "GET" | "POST", path: string, body?: unknown): 
   return (text ? JSON.parse(text) : {}) as T;
 }
 
-/** Recent calls for the configured agent, newest first. */
+/** Recent calls for ALL configured agents (outbound + inbound), newest first. */
 export async function listConversations(limit = 50): Promise<CallSummary[]> {
-  const agentId = process.env.RETELL_AGENT_ID?.trim();
+  // Filter by every synced agent id so BOTH outbound and inbound calls show up.
+  let agentIds: string[] = [];
+  try {
+    agentIds = getRetellAgentIds();
+  } catch {
+    /* no agent configured — list unfiltered */
+  }
   const raw = await retell<any[]>("POST", "/v2/list-calls", {
-    filter_criteria: agentId ? { agent_id: [agentId] } : undefined,
+    filter_criteria: agentIds.length ? { agent_id: agentIds } : undefined,
     sort_order: "descending",
     limit,
   });
@@ -73,6 +80,7 @@ export async function listConversations(limit = 50): Promise<CallSummary[]> {
     durationSecs: Math.round((c.duration_ms ?? 0) / 1000),
     messageCount: (c.transcript_object ?? []).length,
     startUnix: c.start_timestamp ? Math.round(c.start_timestamp / 1000) : 0,
+    direction: c.direction,
   }));
 }
 

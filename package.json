@@ -18,6 +18,7 @@
     "retell:auth": "tsx src/retell/client.ts",
     "retell:agent": "tsx src/retell/agent.ts",
     "retell:import": "tsx src/retell/import-number.ts",
+    "retell:setup-inbound": "tsx src/retell/setup-inbound.ts",
     "retell:voice": "tsx src/retell/manage.ts",
     "retell:dial": "tsx src/retell/call.ts",
     "web:dev": "npm --prefix web run dev",

@@ -16,6 +16,7 @@ npm run retell:config    # validate Retell env vars
 npm run retell:auth      # validate key; list agents + phone numbers
 npm run retell:agent     # create LLM + agent (prints RETELL_AGENT_ID)
 npm run retell:import    # import the DID via SIP trunking + bind outbound agent
+npm run retell:setup-inbound  # create inbound receptionist agent (mirrors outbound) + assign to DID
 npm run retell:voice     # list Indian voices / set agent voice (also in UI Settings)
 npm run retell:dial -- +91XXXXXXXXXX   # place an outbound call
 ```
