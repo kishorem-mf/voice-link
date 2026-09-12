@@ -64,7 +64,7 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
     setBizType(p?.businessType ?? "general");
     setBizMsg(null);
     setTgToken("");
-    setTgChat(p?.telegramChatId ?? "");
+    setTgChat("");
     setTgMsg(null);
   }, [selected, profiles]);
 
@@ -336,10 +336,14 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
               style={{ minWidth: 260 }}
             />
             <input
-              placeholder="Chat or group id, e.g. -1001234567890"
+              placeholder={
+                selectedProfile.telegramChatId
+                  ? `Chat ${selectedProfile.telegramChatId} — type to replace`
+                  : "Chat or group id, e.g. -1001234567890"
+              }
               value={tgChat}
               onChange={(e) => setTgChat(e.target.value)}
-              style={{ minWidth: 220 }}
+              style={{ minWidth: 260 }}
             />
           </div>
 

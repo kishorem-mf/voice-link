@@ -106,7 +106,7 @@ export const BUSINESS_TYPES: BusinessType[] = [
       {
         id: "clinic-receptionist",
         direction: "inbound",
-        name: "Clinic Receptionist (Inbound)",
+        name: "Detailed receptionist",
         prompt:
           "You are the warm, professional virtual receptionist for a doctor's clinic, answering " +
           "incoming patient calls. Greet the caller, understand what they need, and help quickly. " +
@@ -123,21 +123,9 @@ export const BUSINESS_TYPES: BusinessType[] = [
           "Hello, thank you for calling the clinic. How may I help you today?",
       },
       {
-        id: "appointment-reminder",
-        direction: "outbound",
-        name: "Appointment Reminder",
-        prompt:
-          "You are a warm, concise appointment-reminder assistant for a clinic. Confirm the " +
-          "patient's upcoming appointment, offer to reschedule if they can't make it, and " +
-          "answer basic questions about timing and location. Keep it short, speak naturally in " +
-          "Hindi/English as the person prefers, and never give medical advice. End politely.",
-        firstMessage:
-          "Hello, this is a reminder call about your upcoming appointment. Is now a good time?",
-      },
-      {
         id: "health-package-sales",
         direction: "outbound",
-        name: "Hospital / Clinic Sales",
+        name: "Package sales",
         prompt:
           "You are a polite sales representative for a hospital's health-checkup and services " +
           "packages. Briefly introduce the offer, understand the person's needs, highlight " +
@@ -188,20 +176,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
         `preferred time, then confirm the desk will call back. ${COMMON_RULES}`,
       firstMessage: "Thank you for calling {business}. How can I help you?",
     },
-    templates: [
-      {
-        id: "appointment-reminder",
-        direction: "outbound",
-        name: "Appointment Reminder",
-        prompt:
-          "You are a warm, concise appointment-reminder assistant for a clinic. Confirm the " +
-          "patient's upcoming appointment, offer to reschedule if they can't make it, and " +
-          "answer basic questions about timing and location. Keep it short, speak naturally in " +
-          "Hindi/English as the person prefers, and never give medical advice. End politely.",
-        firstMessage:
-          "Hello, this is a reminder call about your upcoming appointment. Is now a good time?",
-      },
-    ],
   },
   {
     id: "real-estate",
@@ -362,9 +336,21 @@ export function renderPersona(
  */
 export const GENERAL_TEMPLATES: PersonaTemplate[] = [
   {
+    id: "appointment-confirmation",
+    direction: "outbound",
+    name: "Appointment confirmation",
+    prompt:
+      `You are calling on behalf of {business} to confirm a booking that is coming up. ` +
+      `Confirm the day and time, offer to reschedule if it no longer suits them, and answer ` +
+      `simple questions about timing or location. If they want to change anything you cannot ` +
+      `settle, say the team will call back to sort it out. ${COMMON_RULES}`,
+    firstMessage:
+      "Hello, this is {business} calling to confirm your upcoming booking. Is now a good time?",
+  },
+  {
     id: "feedback-survey",
     direction: "outbound",
-    name: "Feedback / Survey",
+    name: "Feedback",
     prompt:
       "You are a friendly feedback assistant. Ask 2-3 short questions about the person's " +
       "recent experience, listen, acknowledge their answers, and thank them. Keep it under a " +
@@ -375,7 +361,7 @@ export const GENERAL_TEMPLATES: PersonaTemplate[] = [
   {
     id: "lead-qualification",
     direction: "outbound",
-    name: "Lead Qualification",
+    name: "Lead qualification",
     prompt:
       "You are a courteous assistant qualifying interest in a product/service. Confirm you're " +
       "speaking to the right person, gauge interest, capture whether they'd like a follow-up " +
@@ -387,7 +373,7 @@ export const GENERAL_TEMPLATES: PersonaTemplate[] = [
   {
     id: "payment-reminder",
     direction: "outbound",
-    name: "Payment / Renewal Reminder",
+    name: "Payment renewal",
     prompt:
       "You are a polite reminder assistant for an upcoming or pending payment/renewal. State " +
       "the reminder clearly, share how to pay or renew, and offer to answer basic questions. " +
@@ -421,7 +407,10 @@ export function templatesFor(
   const out = [
     {
       id: "default",
-      name: `${type.label} — standard`,
+      name:
+        direction === "inbound"
+          ? "Standard receptionist"
+          : "Standard follow-up",
       group: "Recommended",
       prompt: base.prompt,
       firstMessage: base.firstMessage,

@@ -269,19 +269,11 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
           <option value="" disabled>
             Choose a script…
           </option>
-          {["Recommended", "Other"].map((group) => {
-            const inGroup = templates.filter((t) => t.group === group);
-            if (!inGroup.length) return null;
-            return (
-              <optgroup key={group} label={group === "Recommended" ? "For this business" : "Other uses"}>
-                {inGroup.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </optgroup>
-            );
-          })}
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
         </select>
       </div>
       <div className="hint" style={{ marginTop: 0, marginBottom: 12 }}>
