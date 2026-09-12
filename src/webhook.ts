@@ -24,7 +24,11 @@ import {
 import { importNumber } from "./retell/import-number.js";
 import { startWatcher } from "./notify/watcher.js";
 import { BUSINESS_TYPES } from "./retell/business-types.js";
-import { provisionProfileAgents } from "./retell/provision-profile.js";
+import {
+  provisionProfileAgents,
+  claimNumber,
+  profilesSharingNumber,
+} from "./retell/provision-profile.js";
 import {
   sendTelegram,
   checkTelegram,
@@ -241,15 +245,42 @@ export function createApp() {
     }
   });
 
-  /** Switch the active VoiceLink profile. Body: { id }. */
-  app.post("/api/profiles/active", (req: Request, res: Response) => {
+  /**
+   * Switch the active VoiceLink profile. Body: { id }.
+   *
+   * When several profiles share a DID (demo setups), switching also re-points
+   * that number at this profile's agents — a number routes to exactly one
+   * agent pair, so the business being demoed has to claim it. In production
+   * each client owns their own DID and this step is skipped entirely.
+   */
+  app.post("/api/profiles/active", async (req: Request, res: Response) => {
     const id = (req.body?.id ?? "").trim();
     if (!id) return res.status(400).json({ error: "id required" });
     try {
       const p = setActiveProfile(id);
-      res.json({ active: p.id, profile: p });
+      let claimed = false;
+      let claimError: string | undefined;
+      if (profilesSharingNumber(p.id).length && p.outboundAgentId && p.inboundAgentId) {
+        try {
+          await claimNumber(p.id);
+          claimed = true;
+        } catch (err) {
+          // Switching still succeeded; only the rebinding failed.
+          claimError = (err as Error).message;
+        }
+      }
+      res.json({ active: p.id, profile: p, claimed, claimError });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Explicitly point this profile's DID at its own agents. */
+  app.post("/api/profiles/:id/claim", async (req: Request, res: Response) => {
+    try {
+      res.json(await claimNumber(String(req.params.id)));
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
     }
   });
 

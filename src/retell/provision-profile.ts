@@ -1,6 +1,6 @@
 import { createAgent } from "./agent.js";
 import { getBusinessType, renderPersona } from "./business-types.js";
-import { getProfile, updateProfile, type VoiceLinkProfile } from "./profiles.js";
+import { getProfile, updateProfile, listProfiles, type VoiceLinkProfile } from "./profiles.js";
 import { getRetellApiKey, getRetellBaseUrl } from "./config.js";
 import { importNumber } from "./import-number.js";
 import { updatePostCallAnalysis, fieldsForBusinessType } from "../notify/analysis.js";
@@ -130,6 +130,47 @@ export async function deleteAgent(agentId: string): Promise<void> {
     method: "DELETE",
     headers: { Authorization: `Bearer ${getRetellApiKey()}` },
   });
+}
+
+/** Which profiles share a DID with this one (demo setups only). */
+export function profilesSharingNumber(profileId: string): VoiceLinkProfile[] {
+  const me = getProfile(profileId);
+  return listProfiles().filter((p) => p.id !== me.id && p.fromNumber === me.fromNumber);
+}
+
+/**
+ * Point this profile's DID at this profile's existing agents.
+ *
+ * Distinct from provisioning: no agents are created, deleted or rewritten —
+ * it only moves the number's binding. That matters when several demo profiles
+ * share one DID, because a number can route to exactly one agent pair, so
+ * whichever business you're demoing has to claim it first.
+ *
+ * In production each client owns their own DID and this is a no-op that never
+ * needs calling — which is the point. Sharing a number is the only temporary
+ * part of the setup; nothing else has to change when a client gets their own.
+ */
+export async function claimNumber(profileId: string): Promise<{
+  profile: VoiceLinkProfile;
+  sharedWith: string[];
+}> {
+  const profile = getProfile(profileId);
+  if (!profile.outboundAgentId || !profile.inboundAgentId) {
+    throw new Error(
+      `"${profile.name}" has no agents yet — create this client's agents first.`,
+    );
+  }
+  await importNumber(
+    profile.fromNumber,
+    profile.outboundAgentId,
+    profile.terminationUri,
+    profile.transport ?? "TCP",
+    profile.inboundAgentId,
+  );
+  return {
+    profile,
+    sharedWith: profilesSharingNumber(profileId).map((p) => p.businessName || p.name),
+  };
 }
 
 // Run directly: npm run profiles -- provision <id> [--force]

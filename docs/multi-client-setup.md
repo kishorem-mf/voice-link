@@ -124,8 +124,26 @@ undoes it, so keep a dedicated profile flagged `isDemo` and run demos only
 there. The UI shows a red warning on any profile not flagged, and demo profiles
 are marked 🎯 in the dropdown.
 
-A DID binds to only one inbound agent, so a demo profile needs its **own**
-number — it can't share one with a live client.
+### Several demo businesses on one number
+
+Each demo vertical gets its **own profile with its own permanent agents** —
+identical to production. The only temporary part is that they share a DID.
+
+Because a number routes to exactly one agent pair, switching the active
+profile also **re-points the number** at that profile's agents (`claimNumber`).
+That's a single API call: no agents are created, rewritten or deleted, so
+switching between a salon and a photographer as often as you like leaves no
+litter behind.
+
+When a client gets their own DID, change `fromNumber` on their profile and
+nothing else moves — the sharing simply stops applying, and the re-pointing
+becomes a no-op that never runs.
+
+Do **not** rebuild agents to switch vertical: that discards the persona and
+strands the old agent pair. Rebuild only when a client's business type
+genuinely changes.
+
+A live client should still never share a number with a demo profile.
 
 See [call-alerts-telegram.md](call-alerts-telegram.md) for the demo flow.
 

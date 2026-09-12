@@ -74,7 +74,15 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
     try {
       const r = await api.setActiveProfile(selected);
       setActive(r.active);
-      setMsg(`Switched to ${r.profile.name} (${r.profile.fromNumber}). New calls use this number.`);
+      const who = r.profile.businessName || r.profile.name;
+      setMsg(
+        r.claimed
+          ? `Switched to ${who}. ${r.profile.fromNumber} now answers as ${who}.`
+          : r.claimError
+            ? `Switched to ${who}, but the number could not be re-pointed: ${r.claimError}`
+            : `Switched to ${who} (${r.profile.fromNumber}).`,
+      );
+      load(selected);
       onChanged?.();
     } catch (e) {
       setMsg(`❌ ${(e as Error).message}`);

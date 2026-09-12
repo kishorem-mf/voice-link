@@ -216,7 +216,19 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
-    }).then(json<{ active: string; profile: VoiceLinkProfile }>),
+    }).then(
+      json<{
+        active: string;
+        profile: VoiceLinkProfile;
+        /** True when a shared DID was re-pointed at this client's agents. */
+        claimed?: boolean;
+        claimError?: string;
+      }>,
+    ),
+  claimNumber: (id: string) =>
+    fetch(`/api/profiles/${id}/claim`, { method: "POST" }).then(
+      json<{ profile: VoiceLinkProfile; sharedWith: string[] }>,
+    ),
   addProfile: (p: Omit<VoiceLinkProfile, "id">) =>
     fetch("/api/profiles", {
       method: "POST",
