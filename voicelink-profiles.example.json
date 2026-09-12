@@ -1,6 +1,6 @@
 {
   "_comment": "Redacted copy of voicelink-profiles.json, safe to commit. Bot tokens are placeholders — restore by copying this to voicelink-profiles.json and pasting each client's real token. Regenerate with: npm run profiles:export",
-  "active": "demo-salon",
+  "active": "voicelink-secondary",
   "profiles": [
     {
       "id": "primary",
@@ -21,7 +21,7 @@
       "terminationUri": "sip.voicelink.co.in:3300",
       "transport": "TCP",
       "techPrefix": "",
-      "businessType": "wedding-photography",
+      "businessType": "catering",
       "businessName": "Dreamframe Studios",
       "outboundAgentId": "agent_4d5ee6890130c16e6be7d05ba3",
       "inboundAgentId": "agent_18d915c4b11d532e69461f32aa",

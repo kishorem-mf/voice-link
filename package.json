@@ -19,6 +19,7 @@
     "retell:agent": "tsx src/retell/agent.ts",
     "retell:import": "tsx src/retell/import-number.ts",
     "retell:export": "tsx src/retell/export-agents.ts",
+    "retell:models": "tsx src/retell/sync-models.ts",
     "profiles": "tsx src/retell/profiles.ts",
     "profiles:provision": "tsx src/retell/provision-profile.ts",
     "profiles:export": "tsx src/retell/export-profiles.ts",
