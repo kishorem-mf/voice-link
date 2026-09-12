@@ -18,6 +18,7 @@
     "retell:auth": "tsx src/retell/client.ts",
     "retell:agent": "tsx src/retell/agent.ts",
     "retell:import": "tsx src/retell/import-number.ts",
+    "retell:export": "tsx src/retell/export-agents.ts",
     "profiles": "tsx src/retell/profiles.ts",
     "profiles:provision": "tsx src/retell/provision-profile.ts",
     "notify:test": "tsx src/notify/telegram.ts",
