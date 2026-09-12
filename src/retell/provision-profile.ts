@@ -3,6 +3,7 @@ import { getBusinessType, renderPersona } from "./business-types.js";
 import { getProfile, updateProfile, type VoiceLinkProfile } from "./profiles.js";
 import { getRetellApiKey, getRetellBaseUrl } from "./config.js";
 import { importNumber } from "./import-number.js";
+import { updatePostCallAnalysis, fieldsForBusinessType } from "../notify/analysis.js";
 
 /**
  * Give a profile its own Retell agents, so that client's DID answers with that
@@ -83,6 +84,17 @@ export async function provisionProfileAgents(
     outboundAgentId: outbound.agentId,
     inboundAgentId: inbound.agentId,
   });
+
+  // Configure the post-call tags (lead quality, event date, callback needed).
+  // Easy to forget, and the failure is silent: alerts still arrive, just with
+  // the triage line missing — so it's done here rather than left to a separate
+  // command someone has to remember after every provision.
+  const fields = fieldsForBusinessType(profile.businessType);
+  for (const agentId of [outbound.agentId, inbound.agentId]) {
+    await updatePostCallAnalysis(agentId, fields).catch((err) => {
+      console.warn(`⚠️  Could not set analysis fields on ${agentId}: ${(err as Error).message}`);
+    });
+  }
 
   // Re-point the DID at the new agents. Without this the number keeps
   // answering with whatever it was bound to before, and the new inbound

@@ -1,4 +1,5 @@
 import { getRetellApiKey, getRetellBaseUrl, getRetellAgentIds } from "../retell/config.js";
+import { listProfiles } from "../retell/profiles.js";
 
 /**
  * Post-call analysis fields — what Retell should extract from every call.
@@ -129,6 +130,16 @@ export async function getPostCallAnalysis(
 }
 
 /**
+ * The right field set for a business type.
+ *
+ * A clinic shouldn't be asked "what's the event date and budget" — it wants
+ * appointment details. Everything else starts from the event-vendor set.
+ */
+export function fieldsForBusinessType(businessType?: string): AnalysisField[] {
+  return businessType === "clinic" ? CLINIC_FIELDS : EVENT_VENDOR_FIELDS;
+}
+
+/**
  * Apply to every agent (outbound + inbound) so the two never drift — the same
  * guarantee syncAgents() gives voice/model/limits in webhook.ts.
  */
@@ -142,25 +153,48 @@ export async function syncPostCallAnalysis(
   return out;
 }
 
-// Run directly (`npm run notify:analysis`) to apply the fields to both agents.
-//   npm run notify:analysis            -- apply the event-vendor field set
-//   npm run notify:analysis -- clinic  -- apply the clinic field set
-//   npm run notify:analysis -- show    -- print what's configured now
+/**
+ * Every agent across EVERY client, with the field set matching each client's
+ * business type.
+ *
+ * Deliberately not scoped to the active profile: analysis config is something
+ * you fix once for everyone, and per-profile scoping is exactly how the tags
+ * went missing after per-client agents were introduced.
+ */
+export async function syncAllProfiles(): Promise<
+  { profile: string; agentId: string; count: number }[]
+> {
+  const out: { profile: string; agentId: string; count: number }[] = [];
+  for (const p of listProfiles()) {
+    const fields = fieldsForBusinessType(p.businessType);
+    for (const agentId of [p.outboundAgentId, p.inboundAgentId]) {
+      if (!agentId) continue;
+      const applied = await updatePostCallAnalysis(agentId, fields);
+      out.push({ profile: p.businessName || p.name, agentId, count: applied.length });
+    }
+  }
+  return out;
+}
+
+// Run directly (`npm run notify:analysis`):
+//   npm run notify:analysis          -- apply to every client's agents
+//   npm run notify:analysis -- show  -- print what's configured now
 if (import.meta.url === `file://${process.argv[1]}`) {
   const arg = process.argv[2];
   try {
     if (arg === "show") {
-      for (const agentId of getRetellAgentIds()) {
-        const fields = await getPostCallAnalysis(agentId);
-        console.log(`${agentId}: ${fields.length} field(s)`);
-        for (const f of fields) console.log(`   - ${f.name} (${f.type})`);
+      for (const p of listProfiles()) {
+        for (const agentId of [p.outboundAgentId, p.inboundAgentId]) {
+          if (!agentId) continue;
+          const fields = await getPostCallAnalysis(agentId);
+          const mark = fields.length ? "✅" : "⚠️ ";
+          console.log(`${mark} ${(p.businessName || p.name).padEnd(20)} ${agentId} → ${fields.length} field(s)`);
+        }
       }
     } else {
-      const fields = arg === "clinic" ? CLINIC_FIELDS : EVENT_VENDOR_FIELDS;
-      const label = arg === "clinic" ? "clinic" : "event-vendor";
-      const results = await syncPostCallAnalysis(fields);
-      console.log(`✅ Applied the ${label} field set to ${results.length} agent(s):`);
-      for (const r of results) console.log(`   ${r.agentId} -> ${r.fields.length} field(s)`);
+      const results = await syncAllProfiles();
+      console.log(`✅ Applied analysis fields to ${results.length} agent(s):`);
+      for (const r of results) console.log(`   ${r.profile.padEnd(20)} ${r.agentId} → ${r.count} field(s)`);
       console.log("\nApplies to the NEXT call — existing calls keep their old analysis.");
     }
   } catch (err) {

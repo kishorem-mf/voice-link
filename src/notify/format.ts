@@ -44,11 +44,21 @@ export function formatDuration(ms?: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-/** +919429397398 -> +91 94293 97398, so it's readable at a glance. */
+/**
+ * +919429397398 -> +91 94293 97398, so it's readable at a glance.
+ *
+ * Inbound callers often arrive without the country code (a bare 7842160862),
+ * so a plain 10-digit Indian number is grouped the same way rather than shown
+ * as an unreadable run of digits.
+ */
 export function formatNumber(n?: string): string {
   if (!n) return "unknown";
-  const m = n.match(/^\+91(\d{5})(\d{5})$/);
-  return m ? `+91 ${m[1]} ${m[2]}` : n;
+  const digits = n.replace(/[\s-]/g, "");
+  const withCc = digits.match(/^\+?91(\d{5})(\d{5})$/);
+  if (withCc) return `+91 ${withCc[1]} ${withCc[2]}`;
+  const local = digits.match(/^(\d{5})(\d{5})$/);
+  if (local) return `${local[1]} ${local[2]}`;
+  return n;
 }
 
 /**
