@@ -120,6 +120,21 @@ export function createApp() {
   const app = express();
   app.use(express.json());
 
+  /**
+   * Never let the browser cache an API response.
+   *
+   * Express sends an ETag on JSON by default, so two components fetching
+   * /api/config moments apart could get different answers — one fresh, one
+   * from cache. That surfaced as the dashboard naming one client while the
+   * header named another, which is precisely the confusion client-scoping is
+   * meant to remove. None of this data is cacheable anyway: it changes the
+   * moment a profile is switched.
+   */
+  app.use("/api", (_req: Request, res: Response, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
+
   // Liveness probe.
   app.get("/health", (_req: Request, res: Response) => {
     res.json({ ok: true });
@@ -152,6 +167,10 @@ export function createApp() {
         techPrefix: c.techPrefix || null,
         profileId: active?.id,
         profileName: active?.name,
+        // The trading name — what the agent says and what the UI should show
+        // when explaining whose data is on screen.
+        businessName: active?.businessName || active?.name,
+        isDemo: Boolean(active?.isDemo),
       });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });

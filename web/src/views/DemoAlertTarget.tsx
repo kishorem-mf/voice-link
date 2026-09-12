@@ -58,11 +58,32 @@ export function DemoAlertTarget({
   }
 
   useEffect(() => {
-    if (open) void refresh();
+    if (!open) return;
+    void refresh();
+
     // Re-check every few seconds while open, so the prospect appears on their
     // own without anyone reaching for the keyboard mid-demo.
-    if (!open) return;
-    const t = setInterval(() => void refresh(true), 4000);
+    //
+    // Bounded on purpose. Each tick calls Telegram's getUpdates, and an
+    // unbounded interval left open in a forgotten tab made hundreds of
+    // pointless calls. Five minutes is longer than any real demo needs, and
+    // "Refresh" starts it again.
+    //
+    // Deliberately NOT gated on document.hidden: some embedded browsers report
+    // the page as hidden even while it is on screen, which would leave the
+    // prospect's name never appearing — a silent failure right in the middle
+    // of a demo. A bounded poll is the safer trade.
+    let ticks = 0;
+    const MAX_TICKS = 75; // 75 x 4s = 5 minutes
+    const t = setInterval(() => {
+      if (++ticks > MAX_TICKS) {
+        clearInterval(t);
+        setMsg("Stopped checking after 5 minutes — press Refresh to look again.");
+        return;
+      }
+      void refresh(true);
+    }, 4000);
+
     return () => clearInterval(t);
   }, [open, profileId]);
 

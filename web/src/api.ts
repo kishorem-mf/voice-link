@@ -7,6 +7,8 @@ export interface AppConfig {
   techPrefix: string | null;
   profileId?: string;
   profileName?: string;
+  businessName?: string;
+  isDemo?: boolean;
 }
 
 export interface VoiceLinkProfile {
