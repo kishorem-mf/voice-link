@@ -8,8 +8,9 @@ import {
   type PersonaPreset,
   type CallLimits,
 } from "../api";
+import { VoiceLinkProfilePanel } from "./VoiceLinkProfilePanel";
 
-export function Settings() {
+export function Settings({ onProfileChanged }: { onProfileChanged?: () => void } = {}) {
   const [voices, setVoices] = useState<Voice[] | null>(null);
   const [current, setCurrent] = useState<string>("");
   const [selected, setSelected] = useState<string>("");
@@ -228,6 +229,8 @@ export function Settings() {
 
   return (
     <>
+    <VoiceLinkProfilePanel onChanged={onProfileChanged} />
+
     <div className="panel">
       <h2>Agent persona</h2>
       <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>

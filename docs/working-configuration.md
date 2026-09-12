@@ -113,21 +113,29 @@ WEBHOOK_PORT=3000
 
 ---
 
-## Inbound + outbound agents (two agents, synced)
+## Inbound + outbound agents (two agents per client)
 
-The DID runs **two Retell agents**, both assigned on the phone number:
+> **Superseded — agents are now per client.** Each VoiceLink profile owns its own
+> outbound + inbound agent pair, created by `npm run profiles:provision -- <id>`,
+> and its DID is bound to that pair. The `.env` agent ids below are now only a
+> fallback for profiles created before per-client provisioning existed.
+> See [multi-client-setup.md](multi-client-setup.md) for the current model and
+> why sharing agents across DIDs is incorrect.
 
-| Direction | Agent | Persona | .env |
-|---|---|---|---|
-| **Outbound** (calls you make) | `agent_7853768…` (VoiceLink-Outbound-Retell) | Sales — "Meera from Prakto", books demos | `RETELL_AGENT_ID` |
-| **Inbound** (calls to the DID) | `agent_8ef75006…` (VoiceLink-Inbound-Retell) | Receptionist — greets patients, books, no medical advice | `RETELL_INBOUND_AGENT_ID` |
+Each DID runs **two Retell agents**, both assigned on the phone number:
 
-- **Setup:** `npm run retell:setup-inbound` creates the inbound agent mirroring outbound's
-  voice/model/language/limits, then assigns it to the DID's `inbound_agents` (array form —
+| Direction | Role | Fallback .env var |
+|---|---|---|
+| **Outbound** (calls you make) | Sales — books demos | `RETELL_AGENT_ID` |
+| **Inbound** (calls to the DID) | Receptionist — greets callers, books, no medical advice | `RETELL_INBOUND_AGENT_ID` |
+
+- **Setup:** `npm run profiles:provision -- <id>` creates both agents from the
+  client's business type and binds the DID to them (`inbound_agents` array form —
   the single `inbound_agent_id` field is deprecated as of 2026-03-31).
+  The older `npm run retell:setup-inbound` predates per-client agents.
 - **Shared settings are synced:** changing **voice, LLM model, language, post-call model, or
   call limits** in the UI applies to **both** agents (via `syncAgents` over `getRetellAgentIds()`),
-  so they never drift.
+  so they never drift. Scoped to the **active profile** — edits never reach another client's agents.
 - **Personas are per-direction** (not synced) — Settings → Agent persona has an
   **Editing: Outbound / Inbound** toggle. Preset "Clinic Receptionist (Inbound)" seeds inbound.
 - Why two agents: inbound patients must hear a *receptionist*, not the outbound sales pitch.

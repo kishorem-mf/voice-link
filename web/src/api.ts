@@ -5,6 +5,41 @@ export interface AppConfig {
   phoneNumberId: string;
   baseUrl: string;
   techPrefix: string | null;
+  profileId?: string;
+  profileName?: string;
+}
+
+export interface VoiceLinkProfile {
+  id: string;
+  name: string;
+  fromNumber: string;
+  terminationUri: string;
+  transport?: string;
+  techPrefix?: string;
+  businessName?: string;
+  businessType?: string;
+  /** Set once the profile has its own agents; until then it falls back to .env. */
+  outboundAgentId?: string;
+  inboundAgentId?: string;
+  /** Whether this client has its own bot. The token itself never leaves the server. */
+  hasTelegramBot?: boolean;
+  telegramChatId?: string;
+  /** Throwaway profile for sales demos — safe to re-point alerts on. */
+  isDemo?: boolean;
+}
+
+export interface BusinessTypeOption {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface ProvisionResult {
+  outboundAgentId: string;
+  inboundAgentId: string;
+  created: boolean;
+  numberBound: boolean;
+  bindError?: string;
 }
 
 export interface CallResult {
@@ -174,4 +209,53 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ maxDurationMs, silenceMs }),
     }).then(json<CallLimits>),
+  profiles: () =>
+    fetch("/api/profiles").then(json<{ active: string; profiles: VoiceLinkProfile[] }>),
+  setActiveProfile: (id: string) =>
+    fetch("/api/profiles/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).then(json<{ active: string; profile: VoiceLinkProfile }>),
+  addProfile: (p: Omit<VoiceLinkProfile, "id">) =>
+    fetch("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    }).then(json<VoiceLinkProfile>),
+  businessTypes: () => fetch("/api/business-types").then(json<BusinessTypeOption[]>),
+  updateProfile: (id: string, patch: { businessName?: string; businessType?: string }) =>
+    fetch(`/api/profiles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }).then(json<VoiceLinkProfile>),
+  setProfileTelegram: (id: string, patch: { botToken?: string; chatId?: string }) =>
+    fetch(`/api/profiles/${id}/telegram`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }).then(json<{ ok: boolean; botUsername?: string; error?: string }>),
+  telegramChats: (id: string) =>
+    fetch(`/api/profiles/${id}/telegram/chats`).then(
+      json<{
+        botUsername?: string;
+        botLink: string | null;
+        currentChatId?: string;
+        chats: { chatId: string; name: string; type: string }[];
+        error?: string;
+      }>,
+    ),
+  testProfileTelegram: (id: string) =>
+    fetch(`/api/profiles/${id}/telegram/test`, { method: "POST" }).then(
+      json<{ ok: boolean; error?: string }>,
+    ),
+  provisionProfile: (id: string, force = false) =>
+    fetch(`/api/profiles/${id}/provision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force }),
+    }).then(json<ProvisionResult>),
+  importProfile: (id: string) =>
+    fetch(`/api/profiles/${id}/import`, { method: "POST" }).then(json<unknown>),
 };

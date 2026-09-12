@@ -1,0 +1,245 @@
+<title>Variation 1 Call Flow</title>
+<style>
+  :root {
+    --bg: #f5f9f8; --card: #ffffff; --ink: #0c2a2e; --muted: #6a8c89;
+    --accent: #0b9e86; --accent-bg: #e2f4ef; --line: #d8e6e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a1e1c; --card: #123330; --ink: #eaf7f4; --muted: #8fb5b0;
+      --accent: #3fe0c0; --accent-bg: rgba(63,224,192,.14); --line: #24504a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a1e1c; --card: #123330; --ink: #eaf7f4; --muted: #8fb5b0;
+    --accent: #3fe0c0; --accent-bg: rgba(63,224,192,.14); --line: #24504a;
+  }
+  :root[data-theme="light"] {
+    --bg: #f5f9f8; --card: #ffffff; --ink: #0c2a2e; --muted: #6a8c89;
+    --accent: #0b9e86; --accent-bg: #e2f4ef; --line: #d8e6e3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    padding: 28px 20px 60px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 21px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 14.5px; line-height: 1.5; margin: 0 0 24px; max-width: 62ch; }
+  figure { margin: 0; }
+  .diagram-frame {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 12px; overflow-x: auto;
+  }
+  svg { display: block; width: 100%; height: auto; min-width: 720px; }
+  figcaption { color: var(--muted); font-size: 13px; margin-top: 12px; line-height: 1.5; }
+
+  /* SVG element styling via ordinary page CSS (nothing declared inside the <svg>) */
+  .box { fill: var(--card); stroke: var(--line); stroke-width: 1.6; }
+  .box-goal { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 2; }
+  .box-external { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 2; }
+  .box-dead { fill: var(--card); stroke: var(--muted); stroke-width: 1.6; stroke-dasharray: 5 4; }
+  .diamond { fill: var(--card); stroke: var(--line); stroke-width: 1.6; }
+
+  .flow { stroke: var(--ink); stroke-width: 2; fill: none; }
+  .flow-accent { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+  .flow-dashed { stroke: var(--muted); stroke-width: 1.8; fill: none; stroke-dasharray: 6 5; }
+
+  text { font-family: inherit; fill: var(--ink); }
+  .t-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .07em; fill: var(--muted); text-transform: uppercase; }
+  .t-eyebrow-accent { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; fill: var(--accent); text-transform: uppercase; }
+  .t-quote { font-size: 12.5px; fill: var(--ink); }
+  .t-diamond { font-size: 12.5px; font-weight: 700; fill: var(--ink); }
+  .t-goal { font-size: 14px; font-weight: 800; fill: var(--accent); }
+  .t-arrowlabel { font-size: 10.5px; fill: var(--muted); font-style: italic; }
+  .t-costline { font-size: 11.5px; fill: var(--accent); font-weight: 600; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 16px; font-size: 12.5px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { width: 22px; height: 0; border-top-width: 3px; border-top-style: solid; display: inline-block; }
+</style>
+
+<div class="wrap">
+  <h1>Variation 1 — Wedding-Photographer Gatekeeper Script</h1>
+  <p class="sub">Every likely thing the receptionist/assistant says, and the exact next
+    line it leads to — from the opener down to a booked 10-minute demo or a follow-up.</p>
+
+  <figure>
+    <div class="diagram-frame">
+      <svg viewBox="0 0 1000 1510" role="img"
+           aria-label="Decision tree for the wedding-photographer cold-call script: the opener leads to three possible first reactions, which converge on the possible-hidden-gaps question, which leads to three possible answers about who is responsible, which lead to a direct ask, a transfer ask, or a pushback-reframe, ending in a booked demo, a hand-off to the photographer, a follow-up message, or a dead end.">
+
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"></path>
+          </marker>
+          <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path>
+          </marker>
+          <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"></path>
+          </marker>
+        </defs>
+
+        <!-- ===== CONNECTORS (drawn first, so boxes sit on top of line ends) ===== -->
+        <!-- N1 -> N2 -->
+        <line class="flow" x1="480" y1="102" x2="480" y2="148" marker-end="url(#arrow)"></line>
+        <!-- N2 -> N3L (main path, accent) -->
+        <polyline class="flow-accent" points="365,210 190,210 190,340" marker-end="url(#arrow-accent)"></polyline>
+        <!-- N2 -> N3C -->
+        <line class="flow" x1="480" y1="272" x2="480" y2="340" marker-end="url(#arrow)"></line>
+        <!-- N2 -> N3R -->
+        <polyline class="flow" points="595,210 780,210 780,340" marker-end="url(#arrow)"></polyline>
+        <!-- N3R -> DEAD -->
+        <line class="flow-dashed" x1="780" y1="426" x2="780" y2="466" marker-end="url(#arrow-muted)"></line>
+        <!-- N3L -> N4 (merge) -->
+        <polyline class="flow-accent" points="190,426 190,478 460,478 460,500" marker-end="url(#arrow-accent)"></polyline>
+        <!-- N3C -> N4 (merge) -->
+        <line class="flow" x1="480" y1="426" x2="500" y2="500" marker-end="url(#arrow)"></line>
+        <!-- N4 -> N5 -->
+        <line class="flow" x1="480" y1="632" x2="480" y2="660" marker-end="url(#arrow)"></line>
+        <!-- N5 -> N6L -->
+        <polyline class="flow" points="360,725 190,725 190,800" marker-end="url(#arrow)"></polyline>
+        <!-- N5 -> N6C -->
+        <line class="flow" x1="480" y1="790" x2="480" y2="800" marker-end="url(#arrow)"></line>
+        <!-- N5 -> N6R -->
+        <polyline class="flow" points="600,725 780,725 780,800" marker-end="url(#arrow)"></polyline>
+        <!-- N6L -> N7L -->
+        <line class="flow" x1="190" y1="886" x2="190" y2="920" marker-end="url(#arrow)"></line>
+        <!-- N6C -> N7C -->
+        <line class="flow" x1="480" y1="886" x2="480" y2="920" marker-end="url(#arrow)"></line>
+        <!-- N6R -> N7R -->
+        <line class="flow" x1="780" y1="896" x2="780" y2="920" marker-end="url(#arrow)"></line>
+        <!-- N7L -> N8L diamond -->
+        <line class="flow" x1="190" y1="1020" x2="190" y2="1052" marker-end="url(#arrow)"></line>
+        <!-- N7C -> N8C diamond -->
+        <line class="flow" x1="480" y1="1020" x2="480" y2="1052" marker-end="url(#arrow)"></line>
+        <!-- N8L -> GOAL (yes, accent) -->
+        <line class="flow-accent" x1="190" y1="1168" x2="190" y2="1210" marker-end="url(#arrow-accent)"></line>
+        <!-- N8L -> FOLLOWUP (not now) -->
+        <polyline class="flow-dashed" points="100,1110 30,1110 30,1430 270,1430" marker-end="url(#arrow-muted)"></polyline>
+        <!-- N8C -> EXTERNAL (transferring now, accent) -->
+        <line class="flow-accent" x1="480" y1="1168" x2="480" y2="1210" marker-end="url(#arrow-accent)"></line>
+        <!-- N8C -> FOLLOWUP (busy / email us) -->
+        <polyline class="flow-dashed" points="575,1110 650,1110 650,1370" marker-end="url(#arrow-muted)"></polyline>
+        <!-- N7R -> N5 (loop back, dashed) -->
+        <polyline class="flow-dashed" points="905,970 940,970 940,725 600,725" marker-end="url(#arrow-muted)"></polyline>
+        <!-- N7R -> FOLLOWUP (still resistant) -->
+        <polyline class="flow-dashed" points="780,1020 700,1020 700,1370" marker-end="url(#arrow-muted)"></polyline>
+
+        <!-- arrow labels -->
+        <text class="t-arrowlabel" x="190" y="1195" text-anchor="middle">yes</text>
+        <text class="t-arrowlabel" x="65" y="1100" text-anchor="middle">not now</text>
+        <text class="t-arrowlabel" x="500" y="1195" text-anchor="start">transferring</text>
+        <text class="t-arrowlabel" x="614" y="1100" text-anchor="start">busy / email us</text>
+        <text class="t-arrowlabel" x="770" y="712" text-anchor="middle">if warms up: re&#8209;ask</text>
+        <text class="t-arrowlabel" x="740" y="1007" text-anchor="middle">if still resistant</text>
+
+        <!-- ===== N1 START ===== -->
+        <rect class="box" x="290" y="30" width="380" height="72" rx="14"></rect>
+        <text class="t-eyebrow" x="480" y="50" text-anchor="middle">OPENER</text>
+        <text class="t-quote" x="480" y="70" text-anchor="middle">&#8220;Hey, it&#8217;s just [Name]&#8230;&#8221;</text>
+        <text class="t-quote" x="480" y="88" text-anchor="middle">&#8220;could you possibly help me for a moment?&#8221;</text>
+
+        <!-- ===== N2 diamond ===== -->
+        <polygon class="diamond" points="480,148 595,210 480,272 365,210"></polygon>
+        <text class="t-diamond" x="480" y="206" text-anchor="middle">First</text>
+        <text class="t-diamond" x="480" y="222" text-anchor="middle">reaction?</text>
+
+        <!-- ===== Row 3: three first reactions ===== -->
+        <rect class="box" x="75" y="340" width="230" height="86" rx="14"></rect>
+        <text class="t-eyebrow-accent" x="190" y="362" text-anchor="middle">MAIN PATH &#183; ~9 IN 10</text>
+        <text class="t-quote" x="190" y="392" text-anchor="middle">&#8220;Sure, how can I help?&#8221;</text>
+
+        <rect class="box" x="365" y="340" width="230" height="86" rx="14"></rect>
+        <text class="t-quote" x="480" y="388" text-anchor="middle">&#8220;What&#8217;s this regarding?&#8221;</text>
+
+        <rect class="box" x="655" y="340" width="250" height="86" rx="14"></rect>
+        <text class="t-quote" x="780" y="388" text-anchor="middle">&#8220;Not interested&#8221; / hangs up</text>
+
+        <rect class="box-dead" x="670" y="466" width="220" height="64" rx="12"></rect>
+        <text class="t-quote" x="780" y="503" text-anchor="middle" fill="var(--muted)">Dead end &#8212; no engagement</text>
+
+        <!-- ===== N4 MIDDLE ===== -->
+        <rect class="box" x="225" y="500" width="510" height="132" rx="14"></rect>
+        <text class="t-eyebrow" x="480" y="522" text-anchor="middle">MIDDLE</text>
+        <text class="t-quote" x="480" y="542" text-anchor="middle">&#8220;Who&#8217;d be responsible for possible hidden</text>
+        <text class="t-quote" x="480" y="560" text-anchor="middle">gaps in enquiry handling &#8212; could be causing</text>
+        <text class="t-quote" x="480" y="578" text-anchor="middle">lost bookings. You, or [photographer]?&#8221;</text>
+        <text class="t-costline" x="480" y="604" text-anchor="middle">+ cost line: one missed enquiry &#8776; &#8377;75k&#8211;1L</text>
+
+        <!-- ===== N5 diamond ===== -->
+        <polygon class="diamond" points="480,660 600,725 480,790 360,725"></polygon>
+        <text class="t-diamond" x="480" y="720" text-anchor="middle">Who&#8217;s</text>
+        <text class="t-diamond" x="480" y="736" text-anchor="middle">responsible?</text>
+
+        <!-- ===== Row 6: three responsibility answers ===== -->
+        <rect class="box" x="75" y="800" width="230" height="86" rx="14"></rect>
+        <text class="t-quote" x="190" y="850" text-anchor="middle">&#8220;That&#8217;s me,</text>
+        <text class="t-quote" x="190" y="868" text-anchor="middle">I handle it&#8221;</text>
+
+        <rect class="box" x="350" y="800" width="260" height="86" rx="14"></rect>
+        <text class="t-quote" x="480" y="850" text-anchor="middle">&#8220;That&#8217;s [photographer] &#8212;</text>
+        <text class="t-quote" x="480" y="868" text-anchor="middle">let me transfer&#8221;</text>
+
+        <rect class="box" x="645" y="800" width="270" height="96" rx="14"></rect>
+        <text class="t-quote" x="780" y="846" text-anchor="middle">&#8220;We don&#8217;t have that&#8221; /</text>
+        <text class="t-quote" x="780" y="864" text-anchor="middle">&#8220;What do you mean?&#8221;</text>
+
+        <!-- ===== Row 7: the three asks ===== -->
+        <rect class="box" x="60" y="920" width="260" height="100" rx="14"></rect>
+        <text class="t-eyebrow" x="190" y="942" text-anchor="middle">DIRECT ASK</text>
+        <text class="t-quote" x="190" y="962" text-anchor="middle">&#8220;Would you be opposed</text>
+        <text class="t-quote" x="190" y="978" text-anchor="middle">to a quick 10-min look</text>
+        <text class="t-quote" x="190" y="994" text-anchor="middle">this week?&#8221;</text>
+
+        <rect class="box" x="350" y="920" width="260" height="100" rx="14"></rect>
+        <text class="t-eyebrow" x="480" y="942" text-anchor="middle">TRANSFER ASK</text>
+        <text class="t-quote" x="480" y="960" text-anchor="middle">&#8220;Transfer you now, or</text>
+        <text class="t-quote" x="480" y="976" text-anchor="middle">would you be opposed to me</text>
+        <text class="t-quote" x="480" y="992" text-anchor="middle">sharing more directly?&#8221;</text>
+
+        <rect class="box" x="650" y="920" width="260" height="100" rx="14"></rect>
+        <text class="t-eyebrow" x="780" y="942" text-anchor="middle">PUSHBACK &#8594; REFRAME</text>
+        <text class="t-quote" x="780" y="962" text-anchor="middle">Re-deliver cost line:</text>
+        <text class="t-quote" x="780" y="980" text-anchor="middle">&#8220;even one missed call</text>
+        <text class="t-quote" x="780" y="996" text-anchor="middle">&#8776; &#8377;75k+&#8221;</text>
+
+        <!-- ===== Row 8: response diamonds ===== -->
+        <polygon class="diamond" points="190,1052 280,1110 190,1168 100,1110"></polygon>
+        <text class="t-diamond" x="190" y="1114" text-anchor="middle">Response?</text>
+
+        <polygon class="diamond" points="480,1052 575,1110 480,1168 385,1110"></polygon>
+        <text class="t-diamond" x="480" y="1114" text-anchor="middle">Response?</text>
+
+        <!-- ===== Row 9: outcomes ===== -->
+        <rect class="box-goal" x="75" y="1210" width="230" height="80" rx="14"></rect>
+        <text class="t-goal" x="190" y="1256" text-anchor="middle">&#10003; 10-min demo booked</text>
+
+        <rect class="box-external" x="350" y="1210" width="260" height="80" rx="14"></rect>
+        <text class="t-quote" x="480" y="1246" text-anchor="middle" font-weight="700">&#8594; Reaches photographer</text>
+        <text class="t-quote" x="480" y="1264" text-anchor="middle">continues as Variation 2</text>
+
+        <!-- ===== FOLLOWUP ===== -->
+        <rect class="box" x="270" y="1370" width="460" height="110" rx="14"></rect>
+        <text class="t-eyebrow" x="500" y="1394" text-anchor="middle">FOLLOW-UP &#183; VOICEMAIL / MESSAGE</text>
+        <text class="t-quote" x="500" y="1416" text-anchor="middle">&#8220;No worries &#8212; even one missed enquiry could be</text>
+        <text class="t-quote" x="500" y="1434" text-anchor="middle">worth &#8377;75k+, might be worth a quick look.&#8221;</text>
+        <text class="t-quote" x="500" y="1456" text-anchor="middle" fill="var(--muted)" font-size="11">Sent same day if voicemail; DM/SMS 24&#8211;48h later if still no reply.</text>
+
+      </svg>
+    </div>
+    <figcaption>Every branch of Variation 1: the opener splits three ways at the
+      receptionist&#8217;s first reaction, both live paths converge on the &#8220;possible
+      hidden gaps&#8221; question with the quantified cost line, then split again on who&#8217;s
+      responsible, ending in a booked demo, a hand-off to the photographer, a follow-up
+      message, or (rarely) a dead end.</figcaption>
+  </figure>
+
+  <div class="legend">
+    <span><i class="swatch" style="border-color:var(--accent)"></i> fastest route to a booked demo</span>
+    <span><i class="swatch" style="border-color:var(--ink)"></i> structural branch</span>
+    <span><i class="swatch" style="border-color:var(--muted);border-top-style:dashed"></i> fallback / conditional path</span>
+  </div>
+</div>

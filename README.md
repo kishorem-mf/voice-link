@@ -9,6 +9,13 @@ a carrier-side SIP 603 on the non-DLT DID, which is why the project moved to Ret
 See [docs/working-configuration.md](docs/working-configuration.md) for the active
 config and [docs/runbook.md](docs/runbook.md) for operations.
 
+Running it for more than one business:
+
+- [docs/multi-client-setup.md](docs/multi-client-setup.md) — one profile per client
+  (own number, own persona, own alerts). Onboarding is configuration only.
+- [docs/call-alerts-telegram.md](docs/call-alerts-telegram.md) — post-call Telegram
+  alerts, lead tagging, and demo mode.
+
 ## Web UI (runs on Retell)
 
 A React console (in `web/`) — make calls, browse logs, review completed calls with

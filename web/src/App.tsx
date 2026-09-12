@@ -20,9 +20,11 @@ export function App() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [config, setConfig] = useState<AppConfig | null>(null);
 
-  useEffect(() => {
+  function refetchConfig() {
     api.config().then(setConfig).catch(() => setConfig(null));
-  }, []);
+  }
+
+  useEffect(refetchConfig, []);
 
   return (
     <div className="app">
@@ -33,6 +35,7 @@ export function App() {
         </div>
         {config && (
           <div className="meta">
+            {config.profileName && <div>Profile: <code>{config.profileName}</code></div>}
             <div>Agent: <code>{config.agentId}</code></div>
             <div>Number: <code>{config.phoneNumberId}</code></div>
             <div>Endpoint: <code>{config.baseUrl.replace("https://", "")}</code></div>
@@ -56,7 +59,7 @@ export function App() {
       {tab === "call" && <MakeCall />}
       {tab === "logs" && <CallLogs />}
       {tab === "completed" && <CompletedCalls />}
-      {tab === "settings" && <Settings />}
+      {tab === "settings" && <Settings onProfileChanged={refetchConfig} />}
     </div>
   );
 }

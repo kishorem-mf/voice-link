@@ -11,8 +11,27 @@ import {
   getRetellConfig,
   getRetellAgentIds,
   getRetellInboundAgentId,
+  getRetellOutboundAgentId,
 } from "./retell/config.js";
 import { placeCall } from "./retell/call.js";
+import {
+  listProfiles,
+  getActiveProfileId,
+  setActiveProfile,
+  addProfile,
+  updateProfile,
+} from "./retell/profiles.js";
+import { importNumber } from "./retell/import-number.js";
+import { startWatcher } from "./notify/watcher.js";
+import { BUSINESS_TYPES } from "./retell/business-types.js";
+import { provisionProfileAgents } from "./retell/provision-profile.js";
+import {
+  sendTelegram,
+  checkTelegram,
+  getTelegramCredentials,
+  listRecentChats,
+} from "./notify/telegram.js";
+import { profileCredentials } from "./notify/routing.js";
 import {
   listConversations,
   getConversation,
@@ -83,10 +102,14 @@ async function syncAgents<T>(fn: (agentId: string) => Promise<T>): Promise<T> {
   return last as T;
 }
 
-/** Resolve the agent id for a persona direction (defaults to outbound). */
+/**
+ * Resolve the agent id for a persona direction (defaults to outbound).
+ * Both come from the ACTIVE profile, so editing a persona only ever touches
+ * the client currently selected — never another client's agents.
+ */
 function personaAgentId(direction?: unknown): string | undefined {
   if (direction === "inbound") return getRetellInboundAgentId();
-  return process.env.RETELL_AGENT_ID?.trim();
+  return getRetellOutboundAgentId();
 }
 
 export function createApp() {
@@ -116,15 +139,201 @@ export function createApp() {
   app.get("/api/config", (_req: Request, res: Response) => {
     try {
       const c = getRetellConfig();
+      const active = listProfiles().find((p) => p.id === getActiveProfileId());
       res.json({
         provider: "retell",
         agentId: c.agentId,
         phoneNumberId: c.fromNumber,
         baseUrl: c.baseUrl,
         techPrefix: c.techPrefix || null,
+        profileId: active?.id,
+        profileName: active?.name,
       });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  /**
+   * List VoiceLink profiles + which is active.
+   *
+   * Bot tokens are stripped and replaced with a boolean — a token grants full
+   * control of a client's bot, so it must never be shipped to the browser.
+   */
+  app.get("/api/profiles", (_req: Request, res: Response) => {
+    try {
+      const profiles = listProfiles().map(({ telegramBotToken, ...rest }) => ({
+        ...rest,
+        hasTelegramBot: Boolean(telegramBotToken),
+      }));
+      res.json({ active: getActiveProfileId(), profiles });
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Set (or clear) a client's own Telegram bot. Body: { botToken?, chatId? }. */
+  app.patch("/api/profiles/:id/telegram", async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const { botToken, chatId } = req.body ?? {};
+    const patch: Record<string, string> = {};
+    if (typeof botToken === "string") patch.telegramBotToken = botToken.trim();
+    if (typeof chatId === "string") patch.telegramChatId = chatId.trim();
+    if (!Object.keys(patch).length) return res.status(400).json({ error: "nothing to update" });
+    try {
+      const p = updateProfile(id, patch);
+      const creds = profileCredentials(p);
+      // Verify immediately so a typo surfaces here rather than as a silently
+      // missing alert after a real call.
+      const check = creds ? await checkTelegram(creds) : { ok: false, error: "incomplete" };
+      res.json({ ok: check.ok, botUsername: check.botUsername, error: check.error });
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  /**
+   * Who has recently messaged this client's bot, plus the bot's own link.
+   *
+   * Powers the demo flow: a prospect taps the link and presses Start, this
+   * lists them, and one click binds their chat so the next call's alert lands
+   * on THEIR phone. Telegram forbids a bot messaging first, so contact from
+   * their side is unavoidable — this just makes it one tap instead of copying
+   * chat ids out of a raw API response.
+   */
+  app.get("/api/profiles/:id/telegram/chats", async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      const profile = listProfiles().find((p) => p.id === id);
+      if (!profile) return res.status(404).json({ error: `No profile "${id}"` });
+      const creds = profileCredentials(profile) ?? getTelegramCredentials();
+      if (!creds) return res.status(400).json({ error: "No bot configured for this client." });
+      const [who, chats] = await Promise.all([checkTelegram(creds), listRecentChats(creds)]);
+      res.json({
+        botUsername: who.botUsername,
+        botLink: who.botUsername ? `https://t.me/${who.botUsername}` : null,
+        currentChatId: creds.chatId,
+        chats: chats.chats,
+        error: chats.error,
+      });
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Send a test alert using this client's bot. */
+  app.post("/api/profiles/:id/telegram/test", async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      const profile = listProfiles().find((p) => p.id === id);
+      if (!profile) return res.status(404).json({ error: `No profile "${id}"` });
+      const creds = profileCredentials(profile) ?? getTelegramCredentials();
+      if (!creds) return res.status(400).json({ error: "No bot configured for this client." });
+      const name = profile.businessName || profile.name;
+      const r = await sendTelegram(
+        `🔔 <b>Test alert</b>\n<i>${name.replace(/[&<>]/g, "")}</i>\n\n` +
+          `Alerts for this client will arrive here.`,
+        creds,
+      );
+      res.json(r);
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Switch the active VoiceLink profile. Body: { id }. */
+  app.post("/api/profiles/active", (req: Request, res: Response) => {
+    const id = (req.body?.id ?? "").trim();
+    if (!id) return res.status(400).json({ error: "id required" });
+    try {
+      const p = setActiveProfile(id);
+      res.json({ active: p.id, profile: p });
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Add a new VoiceLink profile (one client). */
+  app.post("/api/profiles", (req: Request, res: Response) => {
+    const { name, fromNumber, terminationUri, transport, techPrefix, businessName, businessType } =
+      req.body ?? {};
+    if (!name?.trim() || !fromNumber?.trim() || !terminationUri?.trim()) {
+      return res.status(400).json({ error: "name, fromNumber, and terminationUri are required" });
+    }
+    try {
+      const p = addProfile({
+        name: name.trim(),
+        fromNumber: fromNumber.trim(),
+        terminationUri: terminationUri.trim(),
+        transport: transport?.trim(),
+        techPrefix: techPrefix?.trim(),
+        businessName: businessName?.trim() || name.trim(),
+        businessType: businessType?.trim() || "general",
+      });
+      res.json(p);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  /** The business types a profile can be set to. */
+  app.get("/api/business-types", (_req: Request, res: Response) => {
+    res.json(BUSINESS_TYPES.map(({ id, label, description }) => ({ id, label, description })));
+  });
+
+  /** Edit a profile's client identity. Body: { businessName?, businessType? }. */
+  app.patch("/api/profiles/:id", (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const { businessName, businessType } = req.body ?? {};
+    const patch: Record<string, string> = {};
+    if (typeof businessName === "string") patch.businessName = businessName.trim();
+    if (typeof businessType === "string") patch.businessType = businessType.trim();
+    if (!Object.keys(patch).length) return res.status(400).json({ error: "nothing to update" });
+    try {
+      res.json(updateProfile(id, patch));
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  });
+
+  /**
+   * Give this profile its own Retell agents, built from its business type, and
+   * point its DID at them. This is what makes each client's persona
+   * independent — see the note on VoiceLinkProfile.outboundAgentId.
+   */
+  app.post("/api/profiles/:id/provision", async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const force = Boolean(req.body?.force);
+    try {
+      res.json(await provisionProfileAgents(id, { force }));
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /**
+   * Import a profile's DID into Retell (bind current outbound/inbound agents,
+   * set its termination URI) — the Retell-side half of "point the app at this
+   * profile." The VoiceLink-portal half (adding the DID to the trunk's
+   * inbound-call routing) still has to be done by hand.
+   */
+  app.post("/api/profiles/:id/import", async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const profile = listProfiles().find((p) => p.id === id);
+    if (!profile) return res.status(404).json({ error: `No profile "${id}"` });
+    const outboundAgentId = process.env.RETELL_AGENT_ID?.trim();
+    if (!outboundAgentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
+    try {
+      const r = await importNumber(
+        profile.fromNumber,
+        outboundAgentId,
+        profile.terminationUri,
+        profile.transport || "TCP",
+        getRetellInboundAgentId(),
+      );
+      res.json(r);
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
     }
   });
 
@@ -393,5 +602,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`🌐 Webhook server listening on http://localhost:${port}`);
     console.log(`   POST /webhook/call   — receives ElevenLabs post-call events`);
     console.log(`   GET  /health         — liveness probe`);
+    // Telegram alerts for completed calls. No-ops when no bot is configured.
+    startWatcher();
   });
 }
