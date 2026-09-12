@@ -26,7 +26,6 @@
     "notify:analysis": "tsx src/notify/analysis.ts",
     "notify:preview": "tsx src/notify/preview.ts",
     "notify:watch": "tsx src/notify/watcher.ts",
-    "retell:setup-inbound": "tsx src/retell/setup-inbound.ts",
     "retell:voice": "tsx src/retell/manage.ts",
     "retell:dial": "tsx src/retell/call.ts",
     "web:dev": "npm --prefix web run dev",

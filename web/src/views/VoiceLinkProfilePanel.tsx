@@ -97,8 +97,8 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
     try {
       await api.importProfile(selected);
       setMsg(
-        "Imported into Retell (agents bound, termination set). " +
-          "Still required: add this DID to the VoiceLink trunk's Inbound Call — DIDs.",
+        "Connection re-synced — the number points at this client's agents. " +
+          "If inbound calls still don't arrive, add this number to the VoiceLink trunk's Inbound Call — DIDs.",
       );
     } catch (e) {
       setMsg(`❌ ${(e as Error).message}`);
@@ -230,7 +230,7 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
           {switching ? "Switching…" : "Switch"}
         </button>
         <button className="primary" onClick={importActive} disabled={importing || !selected}>
-          {importing ? "Importing…" : "Import to Retell"}
+          {importing ? "Re-syncing…" : "Re-sync connection"}
         </button>
       </div>
 
@@ -283,11 +283,11 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
             >
               {provisioning
                 ? provisioned
-                  ? "Rebuilding…"
-                  : "Creating…"
+                  ? "Resetting…"
+                  : "Setting up…"
                 : provisioned
-                  ? "Rebuild agents"
-                  : "Create this client's agents"}
+                  ? "Reset scripts to template"
+                  : "Set up this client's agents"}
             </button>
           </div>
 
@@ -309,12 +309,16 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
           )}
 
           <div className="hint">
-            Rebuilding replaces this client's persona with a fresh template and discards
-            any edits made in Agent persona below.
+            Resetting rewrites both scripts from the {" "}
+            <b>{types.find((t) => t.id === bizType)?.label ?? "selected"}</b> template and
+            discards any edits made in “What Sara says”. To change wording without
+            losing it, edit it there instead.
           </div>
 
           {/* ---- This client's Telegram alerts ---- */}
-          <div className="lbl" style={{ marginTop: 18 }}>Call alerts (Telegram)</div>
+          <div className="lbl" style={{ marginTop: 24, paddingTop: 18, borderTop: "1px solid var(--line, #2a3346)" }}>
+            Call alerts (Telegram)
+          </div>
           <div className="hint" style={{ marginTop: 0, marginBottom: 10 }}>
             This client's own bot. Alerts route by the agent that handled the call, so
             each client only ever sees their own leads — regardless of which client is

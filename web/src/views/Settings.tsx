@@ -5,7 +5,7 @@ import {
   type LanguageOption,
   type ModelOption,
   type PostCallModelOption,
-  type PersonaPreset,
+  type PersonaTemplate,
   type CallLimits,
 } from "../api";
 import { VoiceLinkProfilePanel } from "./VoiceLinkProfilePanel";
@@ -41,7 +41,7 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
   const [pcMsg, setPcMsg] = useState<string | null>(null);
 
   // Persona state
-  const [presets, setPresets] = useState<PersonaPreset[]>([]);
+  const [templates, setTemplates] = useState<PersonaTemplate[]>([]);
   const [curPrompt, setCurPrompt] = useState<string>("");
   const [curFirst, setCurFirst] = useState<string>("");
   const [prompt, setPrompt] = useState<string>("");
@@ -80,12 +80,11 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
       api.languages(),
       api.models(),
       api.postCallModels(),
-      api.personas(),
       api.getPrompt(),
       api.getLimits(),
       api.directions(),
     ])
-      .then(([vs, agent, langs, mdls, pcs, prs, persona, limits, dirs]) => {
+      .then(([vs, agent, langs, mdls, pcs, persona, limits, dirs]) => {
         setHasInbound(dirs.inbound);
         setVoices(vs);
         setCurrent(agent.voiceId);
@@ -99,7 +98,6 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
         setPcModels(pcs);
         setCurPc(agent.postCallModel ?? "");
         setSelPc(agent.postCallModel ?? "");
-        setPresets(prs);
         setCurPrompt(persona.prompt);
         setCurFirst(persona.firstMessage);
         setPrompt(persona.prompt);
@@ -125,12 +123,22 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
     }
   }
 
-  function applyPreset(name: string) {
-    const p = presets.find((x) => x.name === name);
-    if (p) {
-      setPrompt(p.prompt);
-      setFirstMsg(p.firstMessage);
-    }
+  /**
+   * Load the scripts offered for this client's trade and direction. Refetched
+   * on direction change because inbound and outbound have different lists.
+   */
+  useEffect(() => {
+    api
+      .templates(direction)
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
+  }, [direction]);
+
+  function applyTemplate(id: string) {
+    const t = templates.find((x) => x.id === id);
+    if (!t) return;
+    setPrompt(t.prompt);
+    setFirstMsg(t.firstMessage);
   }
 
   async function savePersona() {
@@ -232,7 +240,7 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
     <VoiceLinkProfilePanel onChanged={onProfileChanged} />
 
     <div className="panel">
-      <h2>Agent persona</h2>
+      <h2>What Sara says</h2>
       <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
         Defines how the agent behaves and what it says first. Outbound and inbound have
         separate personas (sales vs receptionist). Voice, model, language & limits are
@@ -251,14 +259,33 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
           </select>
         </div>
       )}
-      <div className="row" style={{ marginBottom: 12 }}>
-        <label className="muted" style={{ fontSize: 13 }}>Template</label>
-        <select defaultValue="" onChange={(e) => applyPreset(e.target.value)} style={{ minWidth: 240 }}>
-          <option value="" disabled>Choose a preset…</option>
-          {presets.map((p) => (
-            <option key={p.name} value={p.name}>{p.name}</option>
-          ))}
+      <div className="row" style={{ marginBottom: 4 }}>
+        <label className="muted" style={{ fontSize: 13 }}>Start from</label>
+        <select
+          value=""
+          onChange={(e) => applyTemplate(e.target.value)}
+          style={{ minWidth: 300 }}
+        >
+          <option value="" disabled>
+            Choose a script…
+          </option>
+          {["Recommended", "Other"].map((group) => {
+            const inGroup = templates.filter((t) => t.group === group);
+            if (!inGroup.length) return null;
+            return (
+              <optgroup key={group} label={group === "Recommended" ? "For this business" : "Other uses"}>
+                {inGroup.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
         </select>
+      </div>
+      <div className="hint" style={{ marginTop: 0, marginBottom: 12 }}>
+        Replaces the text below — nothing is saved until you press Save.
       </div>
       <label className="muted" style={{ fontSize: 13, display: "block", marginBottom: 4 }}>
         First message (what the agent says when the call connects)
@@ -307,7 +334,12 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
     </div>
 
     <div className="panel">
-      <h2>Call limits (billing safety)</h2>
+      <h2>How Sara sounds &amp; thinks</h2>
+      <div className="hint" style={{ marginTop: 0, marginBottom: 4 }}>
+        Shared by this client's outbound and inbound agents — changing any of these
+        applies to both. Scoped to the selected client only.
+      </div>
+      <div className="lbl" style={{ marginTop: 10 }}>Call limits (billing safety)</div>
       <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
         Auto-end calls so a caller who forgets to hang up can't run up your bill.
         {curLimits && (
@@ -356,10 +388,8 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
           {limitsMsg.startsWith("❌") ? limitsMsg : `✅ ${limitsMsg}`}
         </div>
       )}
-    </div>
 
-    <div className="panel">
-      <h2>LLM model</h2>
+      <div className="lbl" style={{ marginTop: 22 }}>LLM model</div>
       <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
         Current model: <code>{curModel || "…"}</code>. The model drives most of the
         per-minute cost. Cheaper models suit reminder/confirmation calls.
@@ -397,10 +427,8 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
           {modelMsg.startsWith("❌") ? modelMsg : `✅ ${modelMsg}`}
         </div>
       )}
-    </div>
 
-    <div className="panel">
-      <h2>Post-call analysis model</h2>
+      <div className="lbl" style={{ marginTop: 22 }}>Post-call analysis model</div>
       <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
         Current: <code>{curPc || "…"}</code>. Runs once per call to produce the
         summary + sentiment — billed <em>per call</em>, so a cheap model saves a flat
@@ -432,10 +460,8 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
           {pcMsg.startsWith("❌") ? pcMsg : `✅ ${pcMsg}`}
         </div>
       )}
-    </div>
 
-    <div className="panel">
-      <h2>Agent language</h2>
+      <div className="lbl" style={{ marginTop: 22 }}>Agent language</div>
       <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
         Current language: <code>{labelFor(curLang) || "…"}</code>. Applies to the
         Retell agent and takes effect on the next call.
@@ -466,10 +492,8 @@ export function Settings({ onProfileChanged }: { onProfileChanged?: () => void }
           {langMsg.startsWith("❌") ? langMsg : `✅ ${langMsg}`}
         </div>
       )}
-    </div>
 
-    <div className="panel">
-      <h2>Agent voice</h2>
+      <div className="lbl" style={{ marginTop: 22 }}>Agent voice</div>
       <div className="hint" style={{ marginTop: 0, marginBottom: 14 }}>
         Current voice: <code>{current || "…"}</code>. Changes apply to the Retell
         outbound agent and take effect on the next call.

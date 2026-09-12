@@ -124,8 +124,11 @@ export interface PostCallModelOption {
   pricePerCall: number;
 }
 
-export interface PersonaPreset {
+export interface PersonaTemplate {
+  id: string;
   name: string;
+  /** "Recommended" (this trade) or "Other" (generic). */
+  group: string;
   prompt: string;
   firstMessage: string;
 }
@@ -193,7 +196,8 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model }),
     }).then(json<{ model: string }>),
-  personas: () => fetch("/api/retell/personas").then(json<PersonaPreset[]>),
+  templates: (direction: "outbound" | "inbound" = "outbound") =>
+    fetch(`/api/retell/templates?direction=${direction}`).then(json<PersonaTemplate[]>),
   directions: () =>
     fetch("/api/retell/directions").then(json<{ outbound: boolean; inbound: boolean }>),
   getPrompt: (direction: "outbound" | "inbound" = "outbound") =>

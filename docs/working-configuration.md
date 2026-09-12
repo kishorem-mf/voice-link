@@ -132,7 +132,6 @@ Each DID runs **two Retell agents**, both assigned on the phone number:
 - **Setup:** `npm run profiles:provision -- <id>` creates both agents from the
   client's business type and binds the DID to them (`inbound_agents` array form —
   the single `inbound_agent_id` field is deprecated as of 2026-03-31).
-  The older `npm run retell:setup-inbound` predates per-client agents.
 - **Shared settings are synced:** changing **voice, LLM model, language, post-call model, or
   call limits** in the UI applies to **both** agents (via `syncAgents` over `getRetellAgentIds()`),
   so they never drift. Scoped to the **active profile** — edits never reach another client's agents.

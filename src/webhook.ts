@@ -23,7 +23,7 @@ import {
 } from "./retell/profiles.js";
 import { importNumber } from "./retell/import-number.js";
 import { startWatcher } from "./notify/watcher.js";
-import { BUSINESS_TYPES } from "./retell/business-types.js";
+import { BUSINESS_TYPES, templatesFor } from "./retell/business-types.js";
 import {
   provisionProfileAgents,
   claimNumber,
@@ -56,7 +56,6 @@ import {
   LANGUAGES,
   MODELS,
   POST_CALL_MODELS,
-  PERSONA_PRESETS,
 } from "./retell/manage.js";
 
 /**
@@ -572,8 +571,22 @@ export function createApp() {
   });
 
   /** Ready-made persona templates for the UI dropdown. */
-  app.get("/api/retell/personas", (_req: Request, res: Response) => {
-    res.json(PERSONA_PRESETS);
+  /**
+   * Scripts available for the ACTIVE client and one direction.
+   *
+   * Replaces the old /api/retell/personas, which returned one global list
+   * regardless of trade — a wedding studio was offered a clinic receptionist
+   * script, and that list competed with the business-type template for the
+   * same field.
+   */
+  app.get("/api/retell/templates", (req: Request, res: Response) => {
+    try {
+      const direction = req.query.direction === "inbound" ? "inbound" : "outbound";
+      const active = listProfiles().find((p) => p.id === getActiveProfileId());
+      res.json(templatesFor(active?.businessType, direction));
+    } catch (err) {
+      res.status(500).json({ error: (err as Error).message });
+    }
   });
 
   /**
