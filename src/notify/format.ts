@@ -89,6 +89,30 @@ const FIELD_LABELS: Record<string, string> = {
   lead_quality: "Lead",
 };
 
+/**
+ * The order tags are shown in, most decision-useful first.
+ *
+ * Without this the order is whatever Retell happens to return, which varies
+ * between calls — so the same information lands in a different place each
+ * time and can't be skimmed. Anything not listed here is appended after.
+ */
+const FIELD_ORDER = [
+  "lead_quality",
+  "caller_name",
+  "event_date",
+  "event_type",
+  "budget_mentioned",
+  "callback_needed",
+];
+
+function orderFields(entries: [string, unknown][]): [string, unknown][] {
+  return [...entries].sort(([a], [b]) => {
+    const ia = FIELD_ORDER.indexOf(a);
+    const ib = FIELD_ORDER.indexOf(b);
+    return (ia === -1 ? FIELD_ORDER.length : ia) - (ib === -1 ? FIELD_ORDER.length : ib);
+  });
+}
+
 const LEAD_ICONS: Record<string, string> = {
   hot: "🔥",
   warm: "🌤",
@@ -106,12 +130,16 @@ function renderField(key: string, value: unknown): string | null {
 
   if (typeof value === "boolean") {
     // A false boolean ("no callback needed") is noise; only surface the true case.
-    return value ? `<b>${escapeHtml(label)}</b>` : null;
+    // On its own line a bare "Callback" reads oddly, so booleans get a verb.
+    if (!value) return null;
+    if (key === "callback_needed") return "↩️ <b>Callback needed</b>";
+    if (key === "budget_mentioned") return "💰 <b>Budget discussed</b>";
+    return `✅ <b>${escapeHtml(label)}</b>`;
   }
   const text = String(value).trim();
   if (key === "lead_quality") {
     const icon = LEAD_ICONS[text.toLowerCase()] ?? "";
-    return `${icon} <b>${escapeHtml(text.toUpperCase())}</b> lead`.trim();
+    return `${icon} <b>${escapeHtml(text.toUpperCase())} lead</b>`.trim();
   }
   return `${escapeHtml(label)}: <b>${escapeHtml(text)}</b>`;
 }
@@ -137,12 +165,14 @@ export function formatCallMessage(call: RetellCallPayload, businessName?: string
   const durationPart = call.duration_ms ? ` · ${formatDuration(call.duration_ms)}` : "";
   lines.push(`${inbound ? "From" : "To"} <code>${escapeHtml(formatNumber(counterparty))}</code>${durationPart}`);
 
-  // 3. Tags from custom analysis — the at-a-glance triage line.
+  // 3. Tags from custom analysis — one per line. Dot-separated they wrap
+  //    unpredictably on a phone and stop being skimmable; stacked, the eye
+  //    finds "Date:" in the same place on every alert.
   const custom = analysis.custom_analysis_data ?? {};
-  const tags = Object.entries(custom)
+  const tags = orderFields(Object.entries(custom))
     .map(([k, v]) => renderField(k, v))
     .filter((x): x is string => Boolean(x));
-  if (tags.length) lines.push("", tags.join(" · "));
+  if (tags.length) lines.push("", ...tags);
 
   // 4. What was actually said.
   if (analysis.call_summary) lines.push("", `<i>${escapeHtml(analysis.call_summary)}</i>`);
