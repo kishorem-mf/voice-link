@@ -352,15 +352,19 @@ export function createApp() {
     const id = String(req.params.id);
     const profile = listProfiles().find((p) => p.id === id);
     if (!profile) return res.status(404).json({ error: `No profile "${id}"` });
-    const outboundAgentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!outboundAgentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
+    const outboundAgentId = profile.outboundAgentId;
+    if (!outboundAgentId) {
+      return res.status(400).json({
+        error: `"${profile.name}" has no agents yet — create this client's agents first.`,
+      });
+    }
     try {
       const r = await importNumber(
         profile.fromNumber,
         outboundAgentId,
         profile.terminationUri,
         profile.transport || "TCP",
-        getRetellInboundAgentId(),
+        profile.inboundAgentId,
       );
       res.json(r);
     } catch (err) {
@@ -468,8 +472,16 @@ export function createApp() {
 
   /** Current agent + its voice, language, and model. */
   app.get("/api/retell/agent", async (_req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
+    // Active profile's agent — not .env, which is only a legacy fallback.
+    let agentId: string;
+    try {
+      agentId = getRetellOutboundAgentId();
+    } catch {
+      return res.status(400).json({
+        error:
+          "This client has no agents yet — open Settings → Client and create them.",
+      });
+    }
     try {
       const [voice, model] = await Promise.all([
         getAgentVoice(agentId),
@@ -587,8 +599,16 @@ export function createApp() {
 
   /** Current call limits (billing safety). */
   app.get("/api/retell/agent/limits", async (_req: Request, res: Response) => {
-    const agentId = process.env.RETELL_AGENT_ID?.trim();
-    if (!agentId) return res.status(400).json({ error: "RETELL_AGENT_ID not set" });
+    // Active profile's agent — not .env, which is only a legacy fallback.
+    let agentId: string;
+    try {
+      agentId = getRetellOutboundAgentId();
+    } catch {
+      return res.status(400).json({
+        error:
+          "This client has no agents yet — open Settings → Client and create them.",
+      });
+    }
     try {
       res.json(await getCallLimits(agentId));
     } catch (err) {
