@@ -21,6 +21,7 @@
     "retell:export": "tsx src/retell/export-agents.ts",
     "profiles": "tsx src/retell/profiles.ts",
     "profiles:provision": "tsx src/retell/provision-profile.ts",
+    "profiles:export": "tsx src/retell/export-profiles.ts",
     "notify:test": "tsx src/notify/telegram.ts",
     "notify:analysis": "tsx src/notify/analysis.ts",
     "notify:preview": "tsx src/notify/preview.ts",

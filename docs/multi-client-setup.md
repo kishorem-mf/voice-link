@@ -23,6 +23,23 @@ One **profile** = one client. A profile owns:
 
 Stored in `voicelink-profiles.json` (gitignored — it holds bot tokens).
 
+### Backing it up
+
+That file is the only record of which client owns which number and which
+agents. Lose it and the Retell agents still exist while nothing knows whose
+they are — so keep a redacted copy in git:
+
+```bash
+npm run profiles:export     # -> voicelink-profiles.example.json, tokens redacted
+```
+
+Run it after adding or changing a client, and commit the result. To restore,
+copy it over `voicelink-profiles.json` and paste each client's real bot token
+back in (chat ids are preserved — they aren't secrets).
+
+Agent prompts live in Retell, not here; snapshot those separately with
+`npm run retell:export`.
+
 ## Why each client needs its own agents
 
 This is the part that is easy to get wrong.
