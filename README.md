@@ -15,6 +15,8 @@ Running it for more than one business:
   (own number, own persona, own alerts). Onboarding is configuration only.
 - [docs/call-alerts-telegram.md](docs/call-alerts-telegram.md) — post-call Telegram
   alerts, lead tagging, and demo mode.
+- [docs/crm-plan.md](docs/crm-plan.md) — planned CRM on DynamoDB: one prospect
+  record and one timeline, whether you or Sara made the call.
 
 ## Web UI (runs on Retell)
 
