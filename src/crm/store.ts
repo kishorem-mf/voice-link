@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { loadSharedAwsEnv, credentialSource } from "./aws-env.js";
 import {
   DynamoDBClient,
   CreateTableCommand,
@@ -35,8 +36,12 @@ import {
  * GSI instead.
  */
 
+// Credentials live in the youtube-summarizer project's .env — same AWS
+// account, one place to rotate them. See aws-env.ts.
+loadSharedAwsEnv();
+
 const TABLE = process.env.CRM_TABLE?.trim() || "nine-square-crm";
-const REGION = process.env.AWS_REGION?.trim() || "us-east-1";
+const REGION = () => process.env.AWS_REGION?.trim() || "us-east-1";
 
 /** Sara resolves an incoming number to a prospect on every call. */
 const PHONE_INDEX = "phone-index";
@@ -49,13 +54,14 @@ let _doc: DynamoDBDocumentClient | null = null;
 
 function doc(): DynamoDBDocumentClient {
   if (_doc) return _doc;
-  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+  if (!isConfigured()) {
     throw new Error(
-      "CRM needs AWS credentials. Add AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY " +
-        "and AWS_REGION to .env (same values as the youtube-summarizer project).",
+      "CRM needs AWS credentials. They are read from the youtube-summarizer " +
+        "project's .env; set AWS_ENV_FILE to its path if that repo has moved, " +
+        "or put AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in this project's .env.",
     );
   }
-  const client = new DynamoDBClient({ region: REGION });
+  const client = new DynamoDBClient({ region: REGION() });
   // removeUndefinedValues: optional fields (phone, instagramUrl) are frequently
   // absent, and DynamoDB rejects explicit undefined.
   _doc = DynamoDBDocumentClient.from(client, {
@@ -65,7 +71,17 @@ function doc(): DynamoDBDocumentClient {
 }
 
 export function isConfigured(): boolean {
+  loadSharedAwsEnv();
   return Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+}
+
+/** Which file the credentials came from — shown by crm:init, never the values. */
+export function credentialsFrom(): string {
+  return credentialSource() ?? "this project's .env";
+}
+
+export function tableName(): string {
+  return TABLE;
 }
 
 const pk = (id: string) => `P#${id}`;
@@ -74,7 +90,7 @@ const evtSk = (at: string) => `EVT#${at}`;
 
 /** Create the table and its indexes if absent. Safe to run repeatedly. */
 export async function ensureTable(): Promise<"created" | "exists"> {
-  const client = new DynamoDBClient({ region: REGION });
+  const client = new DynamoDBClient({ region: REGION() });
   try {
     await client.send(new DescribeTableCommand({ TableName: TABLE }));
     return "exists";

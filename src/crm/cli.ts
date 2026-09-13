@@ -1,4 +1,12 @@
-import { ensureTable, upsertProspect, addEvent, listProspects, isConfigured } from "./store.js";
+import {
+  ensureTable,
+  upsertProspect,
+  addEvent,
+  listProspects,
+  isConfigured,
+  credentialsFrom,
+  tableName,
+} from "./store.js";
 import { followUpDate } from "./schema.js";
 
 /**
@@ -16,6 +24,9 @@ if (!isConfigured()) {
   );
   process.exit(1);
 }
+
+console.log(`🔑 credentials from: ${credentialsFrom()}`);
+console.log(`🗄️  table: ${tableName()} (${process.env.AWS_REGION})\n`);
 
 try {
   if (cmd === "init") {

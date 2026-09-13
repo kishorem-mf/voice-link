@@ -85,7 +85,7 @@ chased. The label is only how it is picked.
 
 ---
 
-## Phase 1 — Store and API (~90 min)
+## Phase 1 — Store and API ✅ done
 
 - `src/crm/schema.ts` — item types, outcome and follow-up enums, date maths
 - `src/crm/store.ts` — create table + GSIs if absent (idempotent, mirroring
@@ -100,8 +100,15 @@ chased. The label is only how it is picked.
 Verified end-to-end with curl before any UI exists.
 
 **Adds the project's first runtime dependency** (`@aws-sdk/client-dynamodb` and
-`@aws-sdk/lib-dynamodb`) and needs `AWS_ACCESS_KEY_ID`,
-`AWS_SECRET_ACCESS_KEY`, `AWS_REGION` in `.env`.
+`@aws-sdk/lib-dynamodb`).
+
+**Credentials are not copied.** They are read from the youtube-summarizer
+project's `.env` — the same file its `app.py` loads — so there is one place to
+rotate them rather than two, and one to forget. Only `AWS_*` and `DYNAMO_*`
+names cross the repo boundary; that file also holds Apify, YouTube and
+Anthropic keys this project has no business loading. Anything set in this
+project's own `.env` wins. `AWS_ENV_FILE` overrides the path if the repo
+moves. See `src/crm/aws-env.ts`.
 
 ## Phase 2 — Prospects tab (~90 min)
 
