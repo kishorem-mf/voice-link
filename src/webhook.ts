@@ -37,6 +37,17 @@ import {
 } from "./notify/telegram.js";
 import { profileCredentials } from "./notify/routing.js";
 import {
+  listProspects,
+  getProspect,
+  upsertProspect,
+  addEvent,
+  listEvents,
+  findByPhone,
+  dueBy,
+  isConfigured as crmConfigured,
+} from "./crm/store.js";
+import { OUTCOMES, FOLLOW_UPS, followUpDate } from "./crm/schema.js";
+import {
   listConversations,
   getConversation,
   getConversationAudio,
@@ -385,6 +396,102 @@ export function createApp() {
         profile.inboundAgentId,
       );
       res.json(r);
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+
+  // ---- CRM (see docs/crm-plan.md) -----------------------------------------
+  // The same store the watcher writes to, so a row logged here and one Sara
+  // wrote are identical apart from `by`.
+
+  /** Dropdown values, so the UI never hardcodes them. */
+  app.get("/api/crm/options", (_req: Request, res: Response) => {
+    res.json({ outcomes: OUTCOMES, followUps: FOLLOW_UPS, configured: crmConfigured() });
+  });
+
+  /** Every prospect, soonest follow-up first. */
+  app.get("/api/crm/prospects", async (_req: Request, res: Response) => {
+    try {
+      res.json(await listProspects());
+    } catch (err) {
+      res.status(crmConfigured() ? 502 : 400).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Prospects whose follow-up is due today or overdue. */
+  app.get("/api/crm/due", async (req: Request, res: Response) => {
+    try {
+      res.json(await dueBy(typeof req.query.date === "string" ? req.query.date : undefined));
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Create or update a prospect. */
+  app.post("/api/crm/prospects", async (req: Request, res: Response) => {
+    const { businessName } = req.body ?? {};
+    if (!businessName?.trim()) return res.status(400).json({ error: "businessName is required" });
+    try {
+      res.json(await upsertProspect(req.body));
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** One prospect with its timeline. */
+  app.get("/api/crm/prospects/:id", async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    try {
+      const prospect = await getProspect(id);
+      if (!prospect) return res.status(404).json({ error: `No prospect "${id}"` });
+      res.json({ prospect, events: await listEvents(id) });
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  app.patch("/api/crm/prospects/:id", async (req: Request, res: Response) => {
+    try {
+      const existing = await getProspect(String(req.params.id));
+      if (!existing) return res.status(404).json({ error: "No such prospect" });
+      res.json(await upsertProspect({ ...existing, ...req.body, prospectId: existing.prospectId }));
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /**
+   * Log a call. Body: { by?, outcome?, notes?, direction?, followUp? }.
+   * `followUp` is a dropdown id; it is resolved to a real date here so the
+   * follow-up index can be queried and sorted.
+   */
+  app.post("/api/crm/prospects/:id/events", async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const { by, outcome, notes, direction, followUp } = req.body ?? {};
+    try {
+      if (!(await getProspect(id))) return res.status(404).json({ error: "No such prospect" });
+      const event = await addEvent({
+        prospectId: id,
+        by: by === "sara" ? "sara" : "me",
+        outcome,
+        notes,
+        direction,
+        ...(followUp === undefined ? {} : { followUpDue: followUpDate(followUp) }),
+      });
+      res.json(event);
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Resolve a phone number to a prospect — what Sara uses on every call. */
+  app.get("/api/crm/lookup", async (req: Request, res: Response) => {
+    const phone = typeof req.query.phone === "string" ? req.query.phone : "";
+    if (!phone) return res.status(400).json({ error: "phone required" });
+    try {
+      res.json({ prospect: await findByPhone(phone) });
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }

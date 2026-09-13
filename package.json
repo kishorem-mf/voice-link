@@ -23,6 +23,9 @@
     "profiles": "tsx src/retell/profiles.ts",
     "profiles:provision": "tsx src/retell/provision-profile.ts",
     "profiles:export": "tsx src/retell/export-profiles.ts",
+    "crm:init": "tsx src/crm/cli.ts init",
+    "crm:seed": "tsx src/crm/cli.ts seed",
+    "crm:list": "tsx src/crm/cli.ts list",
     "notify:test": "tsx src/notify/telegram.ts",
     "notify:analysis": "tsx src/notify/analysis.ts",
     "notify:preview": "tsx src/notify/preview.ts",
@@ -39,6 +42,8 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1131.0",
+    "@aws-sdk/lib-dynamodb": "^3.1131.0",
     "dotenv": "^16.4.7",
     "express": "^5.2.1"
   }
