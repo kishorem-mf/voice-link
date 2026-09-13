@@ -23,7 +23,7 @@ import {
 } from "./retell/profiles.js";
 import { importNumber } from "./retell/import-number.js";
 import { startWatcher } from "./notify/watcher.js";
-import { BUSINESS_TYPES, templatesFor } from "./retell/business-types.js";
+import { BUSINESS_TYPES, templatesFor, renderText } from "./retell/business-types.js";
 import {
   provisionProfileAgents,
   claimNumber,
@@ -583,7 +583,17 @@ export function createApp() {
     try {
       const direction = req.query.direction === "inbound" ? "inbound" : "outbound";
       const active = listProfiles().find((p) => p.id === getActiveProfileId());
-      res.json(templatesFor(active?.businessType, direction));
+      const name = active?.businessName || active?.name || "";
+      // Templates carry a {business} placeholder that provisioning substitutes.
+      // Applying one straight from the dropdown skips that step, so a picked
+      // script would otherwise open with a literal "calling from {business}".
+      res.json(
+        templatesFor(active?.businessType, direction).map((t) => ({
+          ...t,
+          prompt: renderText(t.prompt, name),
+          firstMessage: renderText(t.firstMessage, name),
+        })),
+      );
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });
     }

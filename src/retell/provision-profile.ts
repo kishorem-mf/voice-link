@@ -80,10 +80,25 @@ export async function provisionProfileAgents(
     language,
   });
 
+  // Remember what this profile pointed at, so a rebuild doesn't strand it.
+  const replaced = [profile.outboundAgentId, profile.inboundAgentId].filter(
+    (id): id is string => Boolean(id),
+  );
+
   const updated = updateProfile(profileId, {
     outboundAgentId: outbound.agentId,
     inboundAgentId: inbound.agentId,
   });
+
+  // Delete the pair we just replaced. Without this every rebuild left two
+  // agents behind that nothing referenced — they accumulated silently until a
+  // manual cleanup. Done after the profile is updated, so a failure here
+  // leaves litter rather than a profile pointing at a deleted agent.
+  for (const oldId of replaced) {
+    await deleteAgent(oldId).catch((err) => {
+      console.warn(`⚠️  Could not delete replaced agent ${oldId}: ${(err as Error).message}`);
+    });
+  }
 
   // Configure the post-call tags (lead quality, event date, callback needed).
   // Easy to forget, and the failure is silent: alerts still arrive, just with

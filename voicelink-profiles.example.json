@@ -44,15 +44,15 @@
     },
     {
       "id": "myna-my-own-sales",
-      "name": "Myna — my own sales",
+      "name": "Nine Square — my own sales",
       "fromNumber": "+919429397398",
       "terminationUri": "sip.voicelink.co.in:3300",
       "transport": "TCP",
       "techPrefix": "",
-      "businessName": "Myna",
+      "businessName": "Nine Square",
       "businessType": "koel-sales",
-      "outboundAgentId": "agent_76e2e5af08e37590aa4454b27e",
-      "inboundAgentId": "agent_36f48f5ee619f9f912aa5d87d6",
+      "outboundAgentId": "agent_ea06c123667b44e3a6f86fe24d",
+      "inboundAgentId": "agent_67965a4caef5391b898f2c632e",
       "isDemo": true
     }
   ]

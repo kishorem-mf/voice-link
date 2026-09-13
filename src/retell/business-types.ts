@@ -202,7 +202,7 @@ export const BUSINESS_TYPES: BusinessType[] = [
     id: "koel-sales",
     label: "Selling Koel (your own sales calls)",
     description:
-      "Myna's own agent pitching Koel, the AI receptionist, to businesses",
+      "Your own agent pitching Koel, the AI receptionist, to businesses",
     outbound: {
       prompt:
         `You are Meera, calling small businesses on behalf of {business} about Koel, an AI ` +
@@ -226,7 +226,7 @@ export const BUSINESS_TYPES: BusinessType[] = [
         name: "Book a demo",
         prompt:
           "You are Meera, a warm, professional appointment-setter calling small businesses " +
-          "on behalf of Myna, about Koel — an AI receptionist. Your single goal is to book " +
+          "on behalf of {business}, about Koel — an AI receptionist. Your single goal is to book " +
           "a short 10-minute demo with the owner. Speak naturally in Hindi or English to match the " +
           "person, and keep every turn short.\n\n" +
           "STEP 1 — IDENTIFY THE PERSON: Early on, politely find out whether you are speaking with " +
@@ -249,14 +249,14 @@ export const BUSINESS_TYPES: BusinessType[] = [
           "make claims you're unsure of. When a demo or callback is agreed, clearly CONFIRM the day, " +
           "time, and contact before ending. Keep the whole call under two minutes.",
         firstMessage:
-          "Hi, this is Meera calling from Myna. May I know if I'm speaking with the owner, or with the front desk?",
+          "Hi, this is Meera calling from {business}. May I know if I'm speaking with the owner, or with the front desk?",
       },
       {
         id: "confused-over-demand",
         direction: "outbound",
         name: "Confused-caller approach",
         prompt:
-          "You are Meera, calling small businesses on behalf of Myna, about Koel — an AI " +
+          "You are Meera, calling small businesses on behalf of {business}, about Koel — an AI " +
           "receptionist. You use the 'confused old man' cold-calling technique (Jeremy " +
           "Miner): a deliberately soft, slightly unsure, curious tone — like someone politely " +
           "asking for directions — so the person instinctively wants to help. NEVER sound like a " +
@@ -318,6 +318,11 @@ export function getBusinessType(id?: string): BusinessType {
     BUSINESS_TYPES.find((b) => b.id === id) ??
     BUSINESS_TYPES[BUSINESS_TYPES.length - 1]
   );
+}
+
+/** Substitute {business} in a single string. */
+export function renderText(text: string, businessName: string): string {
+  return text.replaceAll("{business}", businessName.trim() || "our business");
 }
 
 /** Substitute {business} with the client's trading name. */
