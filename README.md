@@ -15,8 +15,11 @@ Running it for more than one business:
   (own number, own persona, own alerts). Onboarding is configuration only.
 - [docs/call-alerts-telegram.md](docs/call-alerts-telegram.md) — post-call Telegram
   alerts, lead tagging, and demo mode.
-- [docs/crm-plan.md](docs/crm-plan.md) — planned CRM on DynamoDB: one prospect
-  record and one timeline, whether you or Sara made the call.
+- [docs/crm-plan.md](docs/crm-plan.md) — CRM on DynamoDB: one prospect record
+  and one timeline, whether you or Sara made the call. Phase 1 (store + API)
+  is built; the Database tab in the app inspects the live table.
+- [docs/crm-phase-2.md](docs/crm-phase-2.md) — the Prospects tab: a worked
+  example of a morning using it, and what gets built.
 
 ## Web UI (runs on Retell)
 
