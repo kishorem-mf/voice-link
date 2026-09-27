@@ -41,6 +41,7 @@ export function DatabaseQuery() {
   const [q, setQ] = useState("browse");
   const [value, setValue] = useState("");
   const [filter, setFilter] = useState("");
+  const [limit, setLimit] = useState(20);
   const [using, setUsing] = useState("");
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [busy, setBusy] = useState(false);
@@ -52,7 +53,7 @@ export function DatabaseQuery() {
     setBusy(true);
     setError(null);
     try {
-      const r = await api.crmQuery(q, value);
+      const r = await api.crmQuery(q, value, limit);
       setUsing(r.using);
       setRows(r.rows);
     } catch (e) {
@@ -69,6 +70,11 @@ export function DatabaseQuery() {
     if (QUERIES.find((x) => x.id === q)!.field === "none") void run();
     else setRows([]);
   }, [q]);
+
+  // Changing the limit re-runs a query that needs no input.
+  useEffect(() => {
+    if (query.field === "none" && rows.length) void run();
+  }, [limit]);
 
   // Free-text filter applied to whatever came back, so it works for any query.
   const shown = filter.trim()
@@ -119,6 +125,12 @@ export function DatabaseQuery() {
           />
         )}
 
+        <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} title="Row limit">
+          {[10, 20, 50, 100].map((n) => (
+            <option key={n} value={n}>last {n}</option>
+          ))}
+        </select>
+
         <button className="primary" onClick={run} disabled={busy}>
           {busy ? "Running…" : "Run"}
         </button>
@@ -141,6 +153,7 @@ export function DatabaseQuery() {
         />
         <span className="hint">
           {shown.length} of {rows.length} row{rows.length === 1 ? "" : "s"}
+          {rows.length >= limit && " — limit reached, raise it to see more"}
         </span>
       </div>
 

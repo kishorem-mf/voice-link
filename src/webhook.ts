@@ -512,9 +512,10 @@ export function createApp() {
   });
 
   /** Table shape + every row — powers the Database tab. */
-  app.get("/api/crm/table", async (_req: Request, res: Response) => {
+  app.get("/api/crm/table", async (req: Request, res: Response) => {
+    const limit = Math.min(Number(req.query.limit ?? 20) || 20, 200);
     try {
-      res.json(await describeTable());
+      res.json(await describeTable(limit));
     } catch (err) {
       res.status(crmConfigured() ? 502 : 400).json({ error: (err as Error).message });
     }
@@ -551,7 +552,7 @@ export function createApp() {
         case "history": {
           if (!value) return res.json({ using: "—", rows: [] });
           const prospect = await getProspect(value);
-          const events = await listEvents(value);
+          const events = await listEvents(value, limit);
           return res.json({
             using: `all rows where pk = P#${value}`,
             rows: [...(prospect ? [prospect] : []), ...events],
@@ -560,12 +561,13 @@ export function createApp() {
         case "tray":
           return res.json({
             using: `status-index, status = ${value || "open"}`,
-            rows: (await listProspects((value || "open") as any)).slice(0, limit),
+            rows: await listProspects((value || "open") as any, limit),
           });
         case "due":
           return res.json({
             using: `status-index, status = open AND followUpSort <= ${value || "today"}`,
             rows: (await dueBy(value || undefined)).slice(0, limit),
+            note: "due reads the whole open tray, then filters by date",
           });
         case "activity": {
           const days = Number(value || 7) || 7;
@@ -577,8 +579,11 @@ export function createApp() {
         case "pipeline":
           return res.json({ using: "status-index, counted per tray", rows: [await pipeline()] });
         default: {
-          const t = await describeTable();
-          return res.json({ using: "full table scan (every row, pointers included)", rows: t.rows.slice(0, limit) });
+          const t = await describeTable(limit);
+          return res.json({
+            using: `table scan, first ${limit} row(s)${t.truncated ? " — more exist" : ""}`,
+            rows: t.rows,
+          });
         }
       }
     } catch (err) {

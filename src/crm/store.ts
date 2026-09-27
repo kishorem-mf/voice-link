@@ -272,7 +272,10 @@ export async function findByInstagram(url: string): Promise<Prospect | null> {
  * A query on the status index, not a scan: the old version read every row in
  * the table — including every call — on each page load.
  */
-export async function listProspects(status: ProspectStatus = "open"): Promise<Prospect[]> {
+export async function listProspects(
+  status: ProspectStatus = "open",
+  limit = 100,
+): Promise<Prospect[]> {
   const r = await doc().send(
     new QueryCommand({
       TableName: TABLE,
@@ -280,6 +283,7 @@ export async function listProspects(status: ProspectStatus = "open"): Promise<Pr
       KeyConditionExpression: "#s = :s",
       ExpressionAttributeNames: { "#s": "status" },
       ExpressionAttributeValues: { ":s": status },
+      Limit: limit,
     }),
   );
   return (r.Items ?? []) as Prospect[];
@@ -378,14 +382,20 @@ export async function addEvent(
   return stored;
 }
 
-/** A prospect's timeline, newest first. */
-export async function listEvents(prospectId: string): Promise<CrmEvent[]> {
+/**
+ * A prospect's timeline, newest first.
+ *
+ * Capped: a long-running prospect can accumulate hundreds of calls, and a
+ * detail page only ever shows the recent ones.
+ */
+export async function listEvents(prospectId: string, limit = 50): Promise<CrmEvent[]> {
   const r = await doc().send(
     new QueryCommand({
       TableName: TABLE,
       KeyConditionExpression: "pk = :p AND begins_with(sk, :e)",
       ExpressionAttributeValues: { ":p": pk(prospectId), ":e": "EVT#" },
       ScanIndexForward: false,
+      Limit: limit,
     }),
   );
   return (r.Items ?? []) as CrmEvent[];
@@ -415,7 +425,11 @@ export async function recentActivity(sinceIso: string, limit = 100): Promise<Crm
 export interface TableShape {
   name: string;
   region: string;
+  /** Rows returned (never more than the requested limit). */
   itemCount: number;
+  /** True when the table holds more rows than were returned. */
+  truncated: boolean;
+  limit: number;
   partitionKey: string;
   sortKey: string;
   indexes: { name: string; partitionKey: string; sortKey?: string }[];
@@ -430,7 +444,7 @@ export interface TableShape {
  * including the POINTER rows that no query would return. It is a debug view,
  * not a hot path.
  */
-export async function describeTable(): Promise<TableShape> {
+export async function describeTable(limit = 20): Promise<TableShape> {
   const client = new DynamoDBClient({ region: REGION() });
   const d = await client.send(new DescribeTableCommand({ TableName: TABLE }));
   const t = d.Table!;
@@ -439,16 +453,22 @@ export async function describeTable(): Promise<TableShape> {
     sortKey: schema.find((k) => k.KeyType === "RANGE")?.AttributeName,
   });
 
-  const scan = await doc().send(new ScanCommand({ TableName: TABLE }));
-  const rows = ((scan.Items ?? []) as Record<string, unknown>[]).sort((a, b) =>
-    `${a.pk}${a.sk}`.localeCompare(`${b.pk}${b.sk}`),
-  );
+  // Ask for one more than needed: if it comes back, there are further rows.
+  // Cheaper and more honest than a count, which would read the whole table.
+  const scan = await doc().send(new ScanCommand({ TableName: TABLE, Limit: limit + 1 }));
+  const all = (scan.Items ?? []) as Record<string, unknown>[];
+  const truncated = all.length > limit || Boolean(scan.LastEvaluatedKey);
+  const rows = all
+    .slice(0, limit)
+    .sort((a, b) => `${a.pk}${a.sk}`.localeCompare(`${b.pk}${b.sk}`));
 
   const main = key(t.KeySchema);
   return {
     name: TABLE,
     region: REGION(),
     itemCount: rows.length,
+    truncated,
+    limit,
     partitionKey: main.partitionKey,
     sortKey: main.sortKey ?? "",
     indexes: (t.GlobalSecondaryIndexes ?? []).map((g) => ({

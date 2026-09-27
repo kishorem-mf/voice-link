@@ -141,7 +141,11 @@ export interface Persona {
 export interface TableShape {
   name: string;
   region: string;
+  /** Rows returned — never more than the requested limit. */
   itemCount: number;
+  /** True when the table holds more rows than were returned. */
+  truncated: boolean;
+  limit: number;
   partitionKey: string;
   sortKey: string;
   indexes: { name: string; partitionKey: string; sortKey?: string }[];
@@ -162,10 +166,10 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   config: () => fetch("/api/config").then(json<AppConfig>),
-  crmTable: () => fetch("/api/crm/table").then(json<TableShape>),
+  crmTable: (limit = 20) => fetch(`/api/crm/table?limit=${limit}`).then(json<TableShape>),
   crmQuery: (q: string, value = "", limit = 50) =>
     fetch(`/api/crm/query?q=${q}&value=${encodeURIComponent(value)}&limit=${limit}`).then(
-      json<{ using: string; rows: Record<string, unknown>[] }>,
+      json<{ using: string; note?: string; rows: Record<string, unknown>[] }>,
     ),
   stats: () => fetch("/api/stats").then(json<Stats>),
   logs: () => fetch("/api/logs").then(json<LoggedOutcome[]>),

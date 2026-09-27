@@ -43,11 +43,13 @@ export function Database() {
   const [table, setTable] = useState<TableShape | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function load() {
+  const [limit, setLimit] = useState(20);
+
+  function load(n = limit) {
     setError(null);
-    api.crmTable().then(setTable).catch((e) => setError(e.message));
+    api.crmTable(n).then(setTable).catch((e) => setError(e.message));
   }
-  useEffect(load, []);
+  useEffect(() => load(limit), [limit]);
 
   if (error)
     return (
@@ -87,8 +89,20 @@ export function Database() {
             <code>{table.sortKey}</code>
           </div>
           <div>
-            <div className="lbl">Rows</div>
-            <b>{table.itemCount}</b>
+            <div className="lbl">Rows shown</div>
+            <b>{table.itemCount}</b>{" "}
+            <select
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              style={{ marginLeft: 6 }}
+            >
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>last {n}</option>
+              ))}
+            </select>
+            {table.truncated && (
+              <div className="hint" style={{ marginTop: 4 }}>more rows exist</div>
+            )}
           </div>
         </div>
 
@@ -169,7 +183,7 @@ export function Database() {
           The cards use a different Column 1 (the phone number or handle) and hold
           nothing but which prospect they point at.
         </div>
-        <button className="primary" style={{ marginTop: 10 }} onClick={load}>
+        <button className="primary" style={{ marginTop: 10 }} onClick={() => load()}>
           Refresh
         </button>
       </div>
