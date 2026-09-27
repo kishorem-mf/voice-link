@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { api } from "../api";
 
 /**
@@ -42,6 +42,8 @@ export function DatabaseQuery() {
   const [value, setValue] = useState("");
   const [filter, setFilter] = useState("");
   const [limit, setLimit] = useState(20);
+  // Rows expanded to show what is actually stored, keyed by pk|sk.
+  const [open, setOpen] = useState<Set<string>>(new Set());
   const [using, setUsing] = useState("");
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [busy, setBusy] = useState(false);
@@ -75,6 +77,14 @@ export function DatabaseQuery() {
   useEffect(() => {
     if (query.field === "none" && rows.length) void run();
   }, [limit]);
+
+  function toggle(key: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
 
   // Free-text filter applied to whatever came back, so it works for any query.
   const shown = filter.trim()
@@ -151,6 +161,19 @@ export function DatabaseQuery() {
           onChange={(e) => setFilter(e.target.value)}
           style={{ minWidth: 260 }}
         />
+        <button
+          className="primary"
+          onClick={() =>
+            setOpen(
+              open.size
+                ? new Set()
+                : new Set(shown.map((r, i) => `${r.pk ?? ""}|${r.sk ?? ""}|${i}`)),
+            )
+          }
+          disabled={!shown.length}
+        >
+          {open.size ? "Hide JSON" : "Show JSON"}
+        </button>
         <span className="hint">
           {shown.length} of {rows.length} row{rows.length === 1 ? "" : "s"}
           {rows.length >= limit && " — limit reached, raise it to see more"}
@@ -167,23 +190,69 @@ export function DatabaseQuery() {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr>
+              <tr>
+                <th style={{ width: 30 }} title="Show what is actually stored"></th>
+                {cols.map((c) => <th key={c}>{c}</th>)}
+              </tr>
             </thead>
             <tbody>
-              {shown.map((r, i) => (
-                <tr key={String(r.pk ?? "") + String(r.sk ?? "") + i}>
-                  {cols.map((c) => {
-                    const v = r[c];
-                    const text = v === undefined || v === null ? "—" : String(v);
-                    const mono = c === "pk" || c === "sk" || c === "prospectId" || c === "phone";
-                    return (
-                      <td key={c} title={text.length > 40 ? text : undefined}>
-                        {mono ? <code>{text}</code> : text.length > 60 ? text.slice(0, 60) + "…" : text}
+              {shown.map((r, i) => {
+                const key = `${r.pk ?? ""}|${r.sk ?? ""}|${i}`;
+                const expanded = open.has(key);
+                return (
+                  <Fragment key={key}>
+                    <tr>
+                      <td>
+                        <button
+                          onClick={() => toggle(key)}
+                          title={expanded ? "Hide stored JSON" : "Show stored JSON"}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "inherit",
+                            cursor: "pointer",
+                            padding: 0,
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          {expanded ? "▾" : "▸"}
+                        </button>
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                      {cols.map((c) => {
+                        const v = r[c];
+                        const text = v === undefined || v === null ? "—" : String(v);
+                        const mono = c === "pk" || c === "sk" || c === "prospectId" || c === "phone";
+                        return (
+                          <td key={c} title={text.length > 40 ? text : undefined}>
+                            {mono ? <code>{text}</code> : text.length > 60 ? text.slice(0, 60) + "…" : text}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {expanded && (
+                      <tr>
+                        <td colSpan={cols.length + 1} style={{ background: "var(--panel-2, #1a2233)" }}>
+                          <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
+                            Stored as separate named attributes, not one JSON blob — which is
+                            what lets DynamoDB sort and group on them.
+                          </div>
+                          <pre
+                            style={{
+                              margin: 0,
+                              padding: "10px 12px",
+                              overflowX: "auto",
+                              fontSize: 12,
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            <code>{JSON.stringify(r, null, 2)}</code>
+                          </pre>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
