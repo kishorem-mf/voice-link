@@ -138,6 +138,16 @@ export interface Persona {
   firstMessage: string;
 }
 
+export interface TableShape {
+  name: string;
+  region: string;
+  itemCount: number;
+  partitionKey: string;
+  sortKey: string;
+  indexes: { name: string; partitionKey: string; sortKey?: string }[];
+  rows: Record<string, unknown>[];
+}
+
 export interface CallLimits {
   maxDurationMs: number;
   silenceMs: number;
@@ -152,6 +162,7 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   config: () => fetch("/api/config").then(json<AppConfig>),
+  crmTable: () => fetch("/api/crm/table").then(json<TableShape>),
   stats: () => fetch("/api/stats").then(json<Stats>),
   logs: () => fetch("/api/logs").then(json<LoggedOutcome[]>),
   conversations: () => fetch("/api/conversations").then(json<ConversationSummary[]>),

@@ -42,6 +42,7 @@ import {
   pipeline,
   recentActivity,
   findByInstagram,
+  describeTable,
   getProspect,
   upsertProspect,
   addEvent,
@@ -500,6 +501,15 @@ export function createApp() {
       res.json(event);
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Table shape + every row — powers the Database tab. */
+  app.get("/api/crm/table", async (_req: Request, res: Response) => {
+    try {
+      res.json(await describeTable());
+    } catch (err) {
+      res.status(crmConfigured() ? 502 : 400).json({ error: (err as Error).message });
     }
   });
 

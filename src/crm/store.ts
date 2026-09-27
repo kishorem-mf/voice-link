@@ -14,6 +14,7 @@ import {
   QueryCommand,
   UpdateCommand,
   DeleteCommand,
+  ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
   newProspectId,
@@ -409,6 +410,53 @@ export async function recentActivity(sinceIso: string, limit = 100): Promise<Crm
     }),
   );
   return (r.Items ?? []) as CrmEvent[];
+}
+
+export interface TableShape {
+  name: string;
+  region: string;
+  itemCount: number;
+  partitionKey: string;
+  sortKey: string;
+  indexes: { name: string; partitionKey: string; sortKey?: string }[];
+  rows: Record<string, unknown>[];
+}
+
+/**
+ * Describe the table and return every row — for the Database tab, which
+ * exists to make the design visible rather than to serve the app.
+ *
+ * Deliberately a Scan: this is the one place that genuinely wants every row,
+ * including the POINTER rows that no query would return. It is a debug view,
+ * not a hot path.
+ */
+export async function describeTable(): Promise<TableShape> {
+  const client = new DynamoDBClient({ region: REGION() });
+  const d = await client.send(new DescribeTableCommand({ TableName: TABLE }));
+  const t = d.Table!;
+  const key = (schema: { AttributeName?: string; KeyType?: string }[] = []) => ({
+    partitionKey: schema.find((k) => k.KeyType === "HASH")?.AttributeName ?? "",
+    sortKey: schema.find((k) => k.KeyType === "RANGE")?.AttributeName,
+  });
+
+  const scan = await doc().send(new ScanCommand({ TableName: TABLE }));
+  const rows = ((scan.Items ?? []) as Record<string, unknown>[]).sort((a, b) =>
+    `${a.pk}${a.sk}`.localeCompare(`${b.pk}${b.sk}`),
+  );
+
+  const main = key(t.KeySchema);
+  return {
+    name: TABLE,
+    region: REGION(),
+    itemCount: rows.length,
+    partitionKey: main.partitionKey,
+    sortKey: main.sortKey ?? "",
+    indexes: (t.GlobalSecondaryIndexes ?? []).map((g) => ({
+      name: g.IndexName!,
+      ...key(g.KeySchema),
+    })),
+    rows,
+  };
 }
 
 /** Remove a prospect, its timeline and its pointers. */
