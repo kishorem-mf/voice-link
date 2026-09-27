@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type TableShape } from "../api";
+import { DatabaseQuery } from "./DatabaseQuery";
 
 /**
  * A window onto the raw DynamoDB table.
@@ -118,6 +119,8 @@ export function Database() {
           </table>
         </div>
       </div>
+
+      <DatabaseQuery />
 
       {groups.map((g) => {
         const rows = table.rows.filter(

@@ -51,7 +51,14 @@ import {
   dueBy,
   isConfigured as crmConfigured,
 } from "./crm/store.js";
-import { OUTCOMES, FOLLOW_UPS, STATUSES, followUpDate } from "./crm/schema.js";
+import {
+  OUTCOMES,
+  FOLLOW_UPS,
+  STATUSES,
+  followUpDate,
+  normalisePhone,
+  normaliseInstagram,
+} from "./crm/schema.js";
 import {
   listConversations,
   getConversation,
@@ -510,6 +517,72 @@ export function createApp() {
       res.json(await describeTable());
     } catch (err) {
       res.status(crmConfigured() ? 502 : 400).json({ error: (err as Error).message });
+    }
+  });
+
+  /**
+   * Run one named query against the CRM table — powers the Database tab's
+   * query picker. Each option names the key or index it uses, so the tab
+   * doubles as a way to see *how* the table answers a question, not just what
+   * it returns.
+   */
+  app.get("/api/crm/query", async (req: Request, res: Response) => {
+    const q = String(req.query.q ?? "browse");
+    const value = String(req.query.value ?? "").trim();
+    const limit = Math.min(Number(req.query.limit ?? 50) || 50, 500);
+    try {
+      switch (q) {
+        case "by_phone": {
+          const p = value ? await findByPhone(value) : null;
+          // Report the key actually read, not what was typed — the point of
+          // this view is showing how the lookup works.
+          return res.json({
+            using: `direct read of PHONE#${normalisePhone(value)} (no index)`,
+            rows: p ? [p] : [],
+          });
+        }
+        case "by_instagram": {
+          const p = value ? await findByInstagram(value) : null;
+          return res.json({
+            using: `direct read of IG#${normaliseInstagram(value)} (no index)`,
+            rows: p ? [p] : [],
+          });
+        }
+        case "history": {
+          if (!value) return res.json({ using: "—", rows: [] });
+          const prospect = await getProspect(value);
+          const events = await listEvents(value);
+          return res.json({
+            using: `all rows where pk = P#${value}`,
+            rows: [...(prospect ? [prospect] : []), ...events],
+          });
+        }
+        case "tray":
+          return res.json({
+            using: `status-index, status = ${value || "open"}`,
+            rows: (await listProspects((value || "open") as any)).slice(0, limit),
+          });
+        case "due":
+          return res.json({
+            using: `status-index, status = open AND followUpSort <= ${value || "today"}`,
+            rows: (await dueBy(value || undefined)).slice(0, limit),
+          });
+        case "activity": {
+          const days = Number(value || 7) || 7;
+          return res.json({
+            using: `activity-index, last ${days} day(s)`,
+            rows: await recentActivity(new Date(Date.now() - days * 86400000).toISOString(), limit),
+          });
+        }
+        case "pipeline":
+          return res.json({ using: "status-index, counted per tray", rows: [await pipeline()] });
+        default: {
+          const t = await describeTable();
+          return res.json({ using: "full table scan (every row, pointers included)", rows: t.rows.slice(0, limit) });
+        }
+      }
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
     }
   });
 

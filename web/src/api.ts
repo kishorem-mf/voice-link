@@ -163,6 +163,10 @@ async function json<T>(res: Response): Promise<T> {
 export const api = {
   config: () => fetch("/api/config").then(json<AppConfig>),
   crmTable: () => fetch("/api/crm/table").then(json<TableShape>),
+  crmQuery: (q: string, value = "", limit = 50) =>
+    fetch(`/api/crm/query?q=${q}&value=${encodeURIComponent(value)}&limit=${limit}`).then(
+      json<{ using: string; rows: Record<string, unknown>[] }>,
+    ),
   stats: () => fetch("/api/stats").then(json<Stats>),
   logs: () => fetch("/api/logs").then(json<LoggedOutcome[]>),
   conversations: () => fetch("/api/conversations").then(json<ConversationSummary[]>),
