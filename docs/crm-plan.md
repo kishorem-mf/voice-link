@@ -38,8 +38,11 @@ creating tables and GSIs from code.
 
 | | Attribute | Value |
 |---|---|---|
-| PK | `pk` | `P#<prospectId>` |
-| SK | `sk` | `PROFILE`, or `EVT#<ISO timestamp>` |
+| PK | `pk` | `P#<prospectId>`, `PHONE#<e164>`, or `IG#<handle>` |
+| SK | `sk` | `PROFILE`, `EVT#<ISO timestamp>`, or `POINTER` |
+
+Three row types, told apart by the `pk` prefix: a prospect's profile, a call
+on that prospect, and a lookup row pointing a phone or handle at a prospect.
 
 `prospectId` is generated, **not** the phone number. Prospects often arrive
 from Instagram scraping with no phone yet, and phone numbers get corrected —
@@ -63,16 +66,35 @@ Also: `direction` · `outcome` · `notes` · and, when Sara wrote it, `callId` �
 `durationSecs` · `recordingUrl` · `summary` · `tags` (the six she already
 extracts).
 
+### Lookups: POINTER rows, not an index
+
+`PHONE#…` and `IG#…` rows hold nothing but a `prospectId`. Reading one is a
+direct, strongly consistent fetch; an index is a copy that lags. Importing a
+scraped list twice would otherwise create duplicates by checking a copy that
+had not caught up — and the pointer makes uniqueness structural rather than
+hoped-for.
+
 ### Indexes
 
-- **`phone-index`** (`phone` → item) — Sara must resolve an incoming number to
-  a prospect in one lookup, on every call.
-- **`followup-index`** (constant PK `PROSPECT`, SK `followUpDue`) — "who do I
-  call today" is the main daily question and should be one query, not a scan.
+- **`status-index`** (PK `status`, SK `followUpSort`) — answers three
+  questions with one index: who to call today (`open`, due ≤ today), every
+  live prospect, and the count per tray. Keying on status is what stops a won
+  customer reappearing in tomorrow's call list — an outcome marked `closes`
+  moves them automatically, rather than relying on anyone remembering.
+  A prospect with no follow-up sorts under a `9999-12-31` sentinel so they
+  still appear in the tray without ever looking due.
+- **`activity-index`** (PK `EVT`, SK `at`) — every call in one time-ordered
+  list. Events were previously reachable only one prospect at a time, so
+  "what did I do this week" was impossible.
 
-`businessName` and `instagramUrl` are filtered client-side over the loaded
-profile list. At a few hundred prospects that is faster and cheaper than two
-more GSIs; revisit past ~5,000.
+`businessName` is filtered client-side over the loaded tray. At a few hundred
+prospects that is cheaper than another index; revisit past ~5,000.
+
+### Table name
+
+`nine-square-crm-v2`. DynamoDB cannot change a key schema in place, so the
+refined shape is a new table. The original `nine-square-crm` is untouched and
+can be deleted once this has proved itself.
 
 ### Dropdowns
 

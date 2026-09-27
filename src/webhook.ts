@@ -38,6 +38,10 @@ import {
 import { profileCredentials } from "./notify/routing.js";
 import {
   listProspects,
+  listAllProspects,
+  pipeline,
+  recentActivity,
+  findByInstagram,
   getProspect,
   upsertProspect,
   addEvent,
@@ -46,7 +50,7 @@ import {
   dueBy,
   isConfigured as crmConfigured,
 } from "./crm/store.js";
-import { OUTCOMES, FOLLOW_UPS, followUpDate } from "./crm/schema.js";
+import { OUTCOMES, FOLLOW_UPS, STATUSES, followUpDate } from "./crm/schema.js";
 import {
   listConversations,
   getConversation,
@@ -408,13 +412,26 @@ export function createApp() {
 
   /** Dropdown values, so the UI never hardcodes them. */
   app.get("/api/crm/options", (_req: Request, res: Response) => {
-    res.json({ outcomes: OUTCOMES, followUps: FOLLOW_UPS, configured: crmConfigured() });
+    res.json({
+      outcomes: OUTCOMES,
+      followUps: FOLLOW_UPS,
+      statuses: STATUSES,
+      configured: crmConfigured(),
+    });
   });
 
-  /** Every prospect, soonest follow-up first. */
-  app.get("/api/crm/prospects", async (_req: Request, res: Response) => {
+  /**
+   * Prospects in one tray (default: live), soonest follow-up first.
+   * ?status=won|lost for the other trays, ?status=all for everything.
+   */
+  app.get("/api/crm/prospects", async (req: Request, res: Response) => {
+    const status = typeof req.query.status === "string" ? req.query.status : "open";
     try {
-      res.json(await listProspects());
+      res.json(
+        status === "all"
+          ? await listAllProspects()
+          : await listProspects(status as "open" | "won" | "lost"),
+      );
     } catch (err) {
       res.status(crmConfigured() ? 502 : 400).json({ error: (err as Error).message });
     }
@@ -486,12 +503,35 @@ export function createApp() {
     }
   });
 
+  /** How many prospects sit in each tray. */
+  app.get("/api/crm/pipeline", async (_req: Request, res: Response) => {
+    try {
+      res.json(await pipeline());
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
+  /** Every call across every prospect — "what did I do this week". */
+  app.get("/api/crm/activity", async (req: Request, res: Response) => {
+    const days = Number(req.query.days ?? 7);
+    const since = new Date(Date.now() - days * 86400000).toISOString();
+    try {
+      res.json(await recentActivity(since));
+    } catch (err) {
+      res.status(502).json({ error: (err as Error).message });
+    }
+  });
+
   /** Resolve a phone number to a prospect — what Sara uses on every call. */
   app.get("/api/crm/lookup", async (req: Request, res: Response) => {
     const phone = typeof req.query.phone === "string" ? req.query.phone : "";
-    if (!phone) return res.status(400).json({ error: "phone required" });
+    const instagram = typeof req.query.instagram === "string" ? req.query.instagram : "";
+    if (!phone && !instagram) return res.status(400).json({ error: "phone or instagram required" });
     try {
-      res.json({ prospect: await findByPhone(phone) });
+      res.json({
+        prospect: phone ? await findByPhone(phone) : await findByInstagram(instagram),
+      });
     } catch (err) {
       res.status(502).json({ error: (err as Error).message });
     }

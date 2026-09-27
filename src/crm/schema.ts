@@ -10,6 +10,20 @@
 /** Who created an event. The distinction is the point, not a detail. */
 export type EventBy = "me" | "sara";
 
+/**
+ * Which tray a prospect sits in.
+ *
+ * Only `open` prospects appear in the daily call list — once a deal is won or
+ * lost they drop out automatically, rather than being filtered by eye forever.
+ */
+export type ProspectStatus = "open" | "won" | "lost";
+
+export const STATUSES: { id: ProspectStatus; label: string }[] = [
+  { id: "open", label: "Live" },
+  { id: "won", label: "Won" },
+  { id: "lost", label: "Lost" },
+];
+
 export interface Prospect {
   prospectId: string;
   businessName: string;
@@ -18,7 +32,7 @@ export interface Prospect {
   instagramUrl?: string;
   /** One of the trades in business-types.ts, when known. */
   businessType?: string;
-  status?: string;
+  status: ProspectStatus;
   /** ISO date (YYYY-MM-DD) the next follow-up is due. */
   followUpDue?: string;
   lastContactedAt?: string;
@@ -46,8 +60,12 @@ export interface CrmEvent {
 export interface Outcome {
   id: string;
   label: string;
-  /** Marks a prospect as finished, so the list can stop chasing them. */
-  closes?: boolean;
+  /**
+   * The tray this outcome moves the prospect into. Omitted = stays `open`.
+   * This is what keeps sold customers out of tomorrow's call list without
+   * anyone having to remember to change their status by hand.
+   */
+  closes?: ProspectStatus;
 }
 
 export const OUTCOMES = [
@@ -55,10 +73,10 @@ export const OUTCOMES = [
   { id: "call_back", label: "Call back later" },
   { id: "demo_booked", label: "Demo booked" },
   { id: "no_answer", label: "No answer" },
-  { id: "wrong_number", label: "Wrong number", closes: true },
-  { id: "not_interested", label: "Not interested", closes: true },
-  { id: "closed_won", label: "Closed won", closes: true },
-  { id: "closed_lost", label: "Closed lost", closes: true },
+  { id: "wrong_number", label: "Wrong number", closes: "lost" },
+  { id: "not_interested", label: "Not interested", closes: "lost" },
+  { id: "closed_won", label: "Closed won", closes: "won" },
+  { id: "closed_lost", label: "Closed lost", closes: "lost" },
 ] as const satisfies readonly Outcome[];
 
 export type OutcomeId = (typeof OUTCOMES)[number]["id"];
@@ -119,6 +137,24 @@ export function normalisePhone(raw: string): string {
   if (d.length === 10) return `+91${d}`;
   if (d.length === 12 && d.startsWith("91")) return `+${d}`;
   return d ? `+${d}` : "";
+}
+
+/** The tray an outcome moves a prospect into, or null to leave it alone. */
+export function statusForOutcome(id?: string): ProspectStatus | null {
+  const o = OUTCOMES.find((x) => x.id === id);
+  return (o && "closes" in o ? (o.closes as ProspectStatus) : null) ?? null;
+}
+
+/** Normalise an Instagram handle or URL to one comparable key. */
+export function normaliseInstagram(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/^instagram\.com\//, "")
+    .replace(/[/?#].*$/, "")
+    .replace(/^@/, "");
 }
 
 /** Short, sortable, collision-resistant id — no dependency needed. */
