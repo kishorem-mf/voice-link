@@ -26,6 +26,7 @@
     "crm:init": "tsx src/crm/cli.ts init",
     "crm:seed": "tsx src/crm/cli.ts seed",
     "crm:list": "tsx src/crm/cli.ts list",
+    "crm:backfill": "tsx src/crm/backfill-shards.ts",
     "notify:test": "tsx src/notify/telegram.ts",
     "notify:analysis": "tsx src/notify/analysis.ts",
     "notify:preview": "tsx src/notify/preview.ts",

@@ -83,9 +83,26 @@ hoped-for.
   moves them automatically, rather than relying on anyone remembering.
   A prospect with no follow-up sorts under a `9999-12-31` sentinel so they
   still appear in the tray without ever looking due.
-- **`activity-index`** (PK `EVT`, SK `at`) — every call in one time-ordered
-  list. Events were previously reachable only one prospect at a time, so
-  "what did I do this week" was impossible.
+- **`activity-index`** (PK `EVT#<YYYY-MM>`, SK `at`) — every call in a
+  time-ordered list. Events were previously reachable only one prospect at a
+  time, so "what did I do this week" was impossible.
+
+  **Sharded by month on purpose.** A single constant partition would funnel
+  every call ever written to one physical partition — capped at 1,000
+  writes/sec and a permanent hot spot. Keying by month spreads the writes
+  while keeping recent reads cheap: a 7-day lookback touches one partition, or
+  two across a month boundary. `recentActivity` walks shards newest-first and
+  stops once the limit is met.
+
+### Writes are transactional
+
+A prospect's profile and its POINTER rows are written in one
+`TransactWriteItems`. Written separately, a failure between them left a
+prospect with no lookup card — silently breaking the dedupe guarantee that
+justified pointers over an index. Importing hundreds of scraped leads is
+hundreds of chances to half-write one, and the damage only surfaces later as a
+duplicate. The same transaction retires stale pointers, so changing a phone
+number does not leave the old one pointing at the prospect forever.
 
 `businessName` is filtered client-side over the loaded tray. At a few hundred
 prospects that is cheaper than another index; revisit past ~5,000.

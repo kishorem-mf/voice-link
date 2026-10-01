@@ -15,6 +15,8 @@ import {
   UpdateCommand,
   DeleteCommand,
   ScanCommand,
+  TransactWriteCommand,
+  type TransactWriteCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 import {
   newProspectId,
@@ -65,10 +67,30 @@ const REGION = () => process.env.AWS_REGION?.trim() || "us-east-1";
  * status is what stops a won customer appearing in tomorrow's call list.
  */
 const STATUS_INDEX = "status-index";
-/** Every call in one time-ordered list, so "what did I do this week" is a query. */
+/** Every call in a time-ordered list, so "what did I do this week" is a query. */
 const ACTIVITY_INDEX = "activity-index";
-/** Constant partition for the activity index, so timestamps sort within it. */
-const ALL_EVENTS = "EVT";
+
+/**
+ * Activity partition, sharded by month.
+ *
+ * A single constant partition would funnel every call ever written to one
+ * physical partition — capped at 1,000 writes/sec and a permanent hot spot.
+ * Keying by month spreads the writes while keeping recent reads cheap: "last
+ * 7 days" touches one partition, or two across a month boundary.
+ */
+const eventShard = (iso: string) => `EVT#${iso.slice(0, 7)}`;
+
+/** Months covering a range, newest first — the shards a lookback must read. */
+function shardsSince(sinceIso: string, until = new Date().toISOString()): string[] {
+  const out: string[] = [];
+  const d = new Date(`${sinceIso.slice(0, 7)}-01T00:00:00Z`);
+  const end = new Date(`${until.slice(0, 7)}-01T00:00:00Z`);
+  while (d <= end) {
+    out.push(`EVT#${d.toISOString().slice(0, 7)}`);
+    d.setUTCMonth(d.getUTCMonth() + 1);
+  }
+  return out.reverse();
+}
 
 let _doc: DynamoDBDocumentClient | null = null;
 
@@ -172,16 +194,6 @@ const phonePk = (phone: string) => `PHONE#${normalisePhone(phone)}`;
 const igPk = (url: string) => `IG#${normaliseInstagram(url)}`;
 const POINTER = "POINTER";
 
-/** Write a lookup row. Cheap, and makes uniqueness structural. */
-async function putPointer(pointerPk: string, prospectId: string): Promise<void> {
-  await doc().send(
-    new PutCommand({
-      TableName: TABLE,
-      Item: { pk: pointerPk, sk: POINTER, prospectId },
-    }),
-  );
-}
-
 async function readPointer(pointerPk: string): Promise<string | null> {
   const r = await doc().send(
     new GetCommand({ TableName: TABLE, Key: { pk: pointerPk, sk: POINTER } }),
@@ -224,23 +236,48 @@ export async function upsertProspect(
     updatedAt: now,
   };
 
-  await doc().send(
-    new PutCommand({
-      TableName: TABLE,
-      Item: {
-        pk: pk(record.prospectId),
-        sk: PROFILE,
-        ...record,
-        followUpSort: followUpSort(record.followUpDue),
+  // Profile and pointers go in one transaction.
+  //
+  // Written separately, a failure between them left a prospect with no lookup
+  // card — which silently breaks the dedupe guarantee that justified pointers
+  // over an index in the first place. Importing hundreds of scraped leads is
+  // hundreds of chances to half-write one, and the damage only surfaces later
+  // as a duplicate.
+  //
+  // Stale pointers are also removed here: changing someone's phone number
+  // would otherwise leave the old number pointing at them forever.
+  const writes: NonNullable<TransactWriteCommandInput["TransactItems"]> = [
+    {
+      Put: {
+        TableName: TABLE,
+        Item: {
+          pk: pk(record.prospectId),
+          sk: PROFILE,
+          ...record,
+          followUpSort: followUpSort(record.followUpDue),
+        },
       },
-    }),
-  );
+    },
+  ];
 
-  // Pointers are written after the profile: a stray pointer to a real record
-  // is harmless, one to a record that failed to save is not.
-  if (record.phone) await putPointer(phonePk(record.phone), record.prospectId);
-  if (record.instagramUrl) await putPointer(igPk(record.instagramUrl), record.prospectId);
+  if (record.phone) {
+    writes.push({
+      Put: { TableName: TABLE, Item: { pk: phonePk(record.phone), sk: POINTER, prospectId: record.prospectId } },
+    });
+  }
+  if (record.instagramUrl) {
+    writes.push({
+      Put: { TableName: TABLE, Item: { pk: igPk(record.instagramUrl), sk: POINTER, prospectId: record.prospectId } },
+    });
+  }
+  if (existing?.phone && existing.phone !== record.phone) {
+    writes.push({ Delete: { TableName: TABLE, Key: { pk: phonePk(existing.phone), sk: POINTER } } });
+  }
+  if (existing?.instagramUrl && igPk(existing.instagramUrl) !== igPk(record.instagramUrl ?? "")) {
+    writes.push({ Delete: { TableName: TABLE, Key: { pk: igPk(existing.instagramUrl), sk: POINTER } } });
+  }
 
+  await doc().send(new TransactWriteCommand({ TransactItems: writes }));
   return record;
 }
 
@@ -342,9 +379,9 @@ export async function addEvent(
         pk: pk(event.prospectId),
         sk: evtSk(at),
         ...stored,
-        // Puts every call in one time-ordered list, so activity can be read
+        // Files the call into its month's activity shard, so it can be read
         // across prospects rather than one at a time.
-        gsiEvt: ALL_EVENTS,
+        gsiEvt: eventShard(at),
       },
     }),
   );
@@ -407,19 +444,26 @@ export async function listEvents(prospectId: string, limit = 50): Promise<CrmEve
  * only reachable one prospect at a time.
  */
 export async function recentActivity(sinceIso: string, limit = 100): Promise<CrmEvent[]> {
-  const r = await doc().send(
-    new QueryCommand({
-      TableName: TABLE,
-      IndexName: ACTIVITY_INDEX,
-      // "at" is a DynamoDB reserved word, so it has to be aliased.
-      KeyConditionExpression: "gsiEvt = :e AND #at >= :s",
-      ExpressionAttributeNames: { "#at": "at" },
-      ExpressionAttributeValues: { ":e": ALL_EVENTS, ":s": sinceIso },
-      ScanIndexForward: false,
-      Limit: limit,
-    }),
-  );
-  return (r.Items ?? []) as CrmEvent[];
+  // Walk month shards newest-first and stop once the limit is met, so a short
+  // lookback reads one partition rather than every month on record.
+  const out: CrmEvent[] = [];
+  for (const shard of shardsSince(sinceIso)) {
+    if (out.length >= limit) break;
+    const r = await doc().send(
+      new QueryCommand({
+        TableName: TABLE,
+        IndexName: ACTIVITY_INDEX,
+        // "at" is a DynamoDB reserved word, so it has to be aliased.
+        KeyConditionExpression: "gsiEvt = :e AND #at >= :s",
+        ExpressionAttributeNames: { "#at": "at" },
+        ExpressionAttributeValues: { ":e": shard, ":s": sinceIso },
+        ScanIndexForward: false,
+        Limit: limit - out.length,
+      }),
+    );
+    out.push(...((r.Items ?? []) as CrmEvent[]));
+  }
+  return out.slice(0, limit);
 }
 
 export interface TableShape {
