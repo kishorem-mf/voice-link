@@ -53,7 +53,12 @@ export const PRODUCT_PENALTY = 120;
 /** Tier floors. Wide enough that reach and the penalty cannot cross one. */
 export const TIER_PHONE = 1000;
 export const TIER_EMAIL = 500;
-export const TIER_NONE = 0;
+/**
+ * Not zero: the product penalty (120) would otherwise push unreachable
+ * product leads below zero. A negative score reads like a bug, and it breaks
+ * the zero-padded sort key the index uses to return leads pre-ranked.
+ */
+export const TIER_NONE = 200;
 
 /**
  * Followers on a log scale, 0-100.
