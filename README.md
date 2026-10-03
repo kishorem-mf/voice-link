@@ -18,6 +18,8 @@ Running it for more than one business:
 - [docs/crm-plan.md](docs/crm-plan.md) — CRM on DynamoDB: one prospect record
   and one timeline, whether you or Sara made the call. Phase 1 (store + API)
   is built; the Database tab in the app inspects the live table.
+- [docs/crm-phase-1.5.md](docs/crm-phase-1.5.md) — importing and ranking
+  scraped Instagram leads, so phase 2 is built against real data.
 - [docs/crm-phase-2.md](docs/crm-phase-2.md) — the Prospects tab: a worked
   example of a morning using it, and what gets built.
 
