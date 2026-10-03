@@ -7,18 +7,23 @@
  * apart from `by`. See docs/crm-plan.md.
  */
 
+import type { BusinessModel } from "./score.js";
+
 /** Who created an event. The distinction is the point, not a detail. */
 export type EventBy = "me" | "sara";
 
 /**
  * Which tray a prospect sits in.
  *
- * Only `open` prospects appear in the daily call list — once a deal is won or
- * lost they drop out automatically, rather than being filtered by eye forever.
+ * `new` holds scraped leads nobody has spoken to yet, ranked best-first; the
+ * first call logged against one moves it to `open`. Only `open` prospects
+ * appear in the daily call list — once a deal is won or lost they drop out
+ * automatically, rather than being filtered by eye forever.
  */
-export type ProspectStatus = "open" | "won" | "lost";
+export type ProspectStatus = "new" | "open" | "won" | "lost";
 
 export const STATUSES: { id: ProspectStatus; label: string }[] = [
+  { id: "new", label: "New" },
   { id: "open", label: "Live" },
   { id: "won", label: "Won" },
   { id: "lost", label: "Lost" },
@@ -37,6 +42,24 @@ export interface Prospect {
   followUpDue?: string;
   lastContactedAt?: string;
   notes?: string;
+  /** Present when the only contact a lead gave is an email address. */
+  email?: string;
+
+  // Set by a scraped import (src/crm/import.ts). Kept on the record so the
+  // ranking can be explained, and re-scored, without the source file.
+  followers?: number;
+  city?: string;
+  /** The scraper's own label, e.g. "wedding photography". */
+  category?: string;
+  bio?: string;
+  /** Lead score from score.ts; orders the `new` tray. */
+  score?: number;
+  businessModel?: BusinessModel;
+  /** File the lead came from. */
+  source?: string;
+  /** One import run — what crm:unimport rolls back. */
+  batchId?: string;
+
   createdAt: string;
   updatedAt: string;
 }

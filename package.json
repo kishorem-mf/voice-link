@@ -27,6 +27,8 @@
     "crm:seed": "tsx src/crm/cli.ts seed",
     "crm:list": "tsx src/crm/cli.ts list",
     "crm:backfill": "tsx src/crm/backfill-shards.ts",
+    "crm:import": "tsx src/crm/import.ts",
+    "crm:unimport": "tsx src/crm/unimport.ts",
     "notify:test": "tsx src/notify/telegram.ts",
     "notify:analysis": "tsx src/notify/analysis.ts",
     "notify:preview": "tsx src/notify/preview.ts",
@@ -46,6 +48,7 @@
     "@aws-sdk/client-dynamodb": "^3.1131.0",
     "@aws-sdk/lib-dynamodb": "^3.1131.0",
     "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1"
   }
 }

@@ -60,11 +60,13 @@ const TABLE = process.env.CRM_TABLE?.trim() || "nine-square-crm-v2";
 const REGION = () => process.env.AWS_REGION?.trim() || "us-east-1";
 
 /**
- * Prospects grouped by tray (open/won/lost), sorted by follow-up date.
+ * Prospects grouped by tray (new/open/won/lost), each tray pre-ranked.
  *
- * One index answers three questions: who do I call today (open, due <= today),
- * show me every live prospect, and how many are at each stage. Keying on the
- * status is what stops a won customer appearing in tomorrow's call list.
+ * One index answers four questions: which scraped lead is best, who do I call
+ * today (open, due <= today), show me every live prospect, and how many are
+ * at each stage. Keying on the status is what stops a won customer appearing
+ * in tomorrow's call list. What the sort key holds depends on the tray — see
+ * traySort.
  */
 const STATUS_INDEX = "status-index";
 /** Every call in a time-ordered list, so "what did I do this week" is a query. */
@@ -181,7 +183,7 @@ export async function ensureTable(): Promise<"created" | "exists"> {
 }
 
 /**
- * Sort value for the status index.
+ * Sort value for a follow-up date.
  *
  * A prospect with no follow-up date still belongs in the index — otherwise
  * "show me every live prospect" would silently omit them. They sort last,
@@ -189,6 +191,32 @@ export async function ensureTable(): Promise<"created" | "exists"> {
  */
 const NO_FOLLOW_UP = "9999-12-31";
 const followUpSort = (due?: string | null) => due || NO_FOLLOW_UP;
+
+/** Highest score the `new` tray's four-digit sort key can order. */
+const MAX_SORTABLE_SCORE = 9999;
+
+/**
+ * Sort value for the status index, per tray.
+ *
+ *   new         inverted score, zero-padded (1073 -> "8926"): best lead first
+ *   open / ...  the follow-up date: most urgent first
+ *
+ * So each tray reads back already ordered, with no sorting on every page
+ * load. The score is inverted because the index sorts ascending, and padded
+ * because "8926" < "974" as strings. Scores are 86-1073 (score.ts), so four
+ * digits never overflow and none is negative.
+ *
+ * The attribute is still called followUpSort: it is the index's sort key, and
+ * DynamoDB cannot rename an index key without deleting and rebuilding the
+ * index on a live table. Only what it holds changed.
+ */
+export function traySort(p: Pick<Prospect, "status" | "score" | "followUpDue">): string {
+  if (p.status === "new") {
+    const score = Math.max(0, Math.min(MAX_SORTABLE_SCORE, Math.round(p.score ?? 0)));
+    return String(MAX_SORTABLE_SCORE - score).padStart(4, "0");
+  }
+  return followUpSort(p.followUpDue);
+}
 
 const phonePk = (phone: string) => `PHONE#${normalisePhone(phone)}`;
 const igPk = (url: string) => `IG#${normaliseInstagram(url)}`;
@@ -254,7 +282,7 @@ export async function upsertProspect(
           pk: pk(record.prospectId),
           sk: PROFILE,
           ...record,
-          followUpSort: followUpSort(record.followUpDue),
+          followUpSort: traySort(record),
         },
       },
     },
@@ -304,7 +332,8 @@ export async function findByInstagram(url: string): Promise<Prospect | null> {
 }
 
 /**
- * Prospects in one tray, soonest follow-up first.
+ * Prospects in one tray, in the tray's own order: best score first for
+ * `new`, soonest follow-up first for the rest.
  *
  * A query on the status index, not a scan: the old version read every row in
  * the table — including every call — on each page load.
@@ -326,22 +355,18 @@ export async function listProspects(
   return (r.Items ?? []) as Prospect[];
 }
 
+const TRAYS: ProspectStatus[] = ["new", "open", "won", "lost"];
+
 /** Every prospect across all trays, for search and export. */
 export async function listAllProspects(): Promise<Prospect[]> {
-  const trays = await Promise.all(
-    (["open", "won", "lost"] as ProspectStatus[]).map((s) => listProspects(s)),
-  );
+  const trays = await Promise.all(TRAYS.map((s) => listProspects(s)));
   return trays.flat();
 }
 
 /** How many prospects sit in each tray. */
 export async function pipeline(): Promise<Record<ProspectStatus, number>> {
-  const [open, won, lost] = await Promise.all([
-    listProspects("open"),
-    listProspects("won"),
-    listProspects("lost"),
-  ]);
-  return { open: open.length, won: won.length, lost: lost.length };
+  const [fresh, open, won, lost] = await Promise.all(TRAYS.map((s) => listProspects(s)));
+  return { new: fresh.length, open: open.length, won: won.length, lost: lost.length };
 }
 
 /** Live prospects whose follow-up is due on or before `date` (default today). */
@@ -371,6 +396,9 @@ export async function addEvent(
   const at = event.at ?? new Date().toISOString();
   const { followUpDue, ...rest } = event;
   const stored: CrmEvent = { ...rest, at };
+  // Read before writing: a call against a `new` lead moves it to `open`, and
+  // its sort key has to change from score to follow-up date with it.
+  const before = await getProspect(event.prospectId);
 
   await doc().send(
     new PutCommand({
@@ -392,19 +420,28 @@ export async function addEvent(
   const values: Record<string, unknown> = { ":t": at };
   const sets = ["lastContactedAt = :t", "updatedAt = :t"];
 
-  if (followUpDue !== undefined) {
-    sets.push("followUpDue = :f", "followUpSort = :fs");
-    values[":f"] = followUpDue ?? null;
-    values[":fs"] = followUpSort(followUpDue);
-  }
-
   // "Closed won" should take them out of tomorrow's call list by itself —
   // relying on someone remembering to change the status is how CRMs rot.
+  // Likewise the first call to a scraped lead makes it a live prospect: it is
+  // no longer someone nobody has spoken to.
   const closed = statusForOutcome(event.outcome);
-  if (closed) {
+  const status = closed ?? (before?.status === "new" ? "open" : null);
+  if (status) {
     sets.push("#s = :st");
     names["#s"] = "status";
-    values[":st"] = closed;
+    values[":st"] = status;
+  }
+
+  // Leaving `new` re-keys the prospect even without a follow-up, or it would
+  // sit in its new tray under a score that now reads as a date.
+  if (followUpDue !== undefined || before?.status === "new") {
+    const due = followUpDue !== undefined ? followUpDue : before?.followUpDue;
+    sets.push("followUpSort = :fs");
+    values[":fs"] = followUpSort(due);
+    if (followUpDue !== undefined) {
+      sets.push("followUpDue = :f");
+      values[":f"] = followUpDue ?? null;
+    }
   }
 
   await doc().send(
@@ -521,6 +558,44 @@ export async function describeTable(limit = 20): Promise<TableShape> {
     })),
     rows,
   };
+}
+
+/**
+ * Every prospect written by one import run.
+ *
+ * A Scan with a filter: a rollback runs rarely, by hand, and has to find the
+ * batch's prospects in whatever tray they have since moved to — no one index
+ * covers that. Paginated, because a Scan page stops at 1 MB.
+ */
+export async function listByBatch(batchId: string): Promise<Prospect[]> {
+  const out: Prospect[] = [];
+  let start: Record<string, unknown> | undefined;
+  do {
+    const r = await doc().send(
+      new ScanCommand({
+        TableName: TABLE,
+        FilterExpression: "sk = :p AND batchId = :b",
+        ExpressionAttributeValues: { ":p": PROFILE, ":b": batchId },
+        ExclusiveStartKey: start,
+      }),
+    );
+    out.push(...((r.Items ?? []) as Prospect[]));
+    start = r.LastEvaluatedKey;
+  } while (start);
+  return out;
+}
+
+/** Whether any call has been logged against a prospect. */
+export async function hasEvents(prospectId: string): Promise<boolean> {
+  const r = await doc().send(
+    new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: "pk = :p AND begins_with(sk, :e)",
+      ExpressionAttributeValues: { ":p": pk(prospectId), ":e": "EVT#" },
+      Limit: 1,
+    }),
+  );
+  return (r.Items ?? []).length > 0;
 }
 
 /** Remove a prospect, its timeline and its pointers. */

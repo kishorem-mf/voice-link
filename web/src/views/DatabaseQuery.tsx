@@ -18,7 +18,7 @@ const QUERIES: { id: string; label: string; field: Field; placeholder?: string; 
   { id: "by_phone", label: "Q1 — Find by phone number", field: "text", placeholder: "7842160862", hint: "What Sara does on every incoming call." },
   { id: "by_instagram", label: "Q2 — Find by Instagram handle", field: "text", placeholder: "@glowstudio", hint: "Used to dedupe a scraped import." },
   { id: "history", label: "Q3 — A prospect + full history", field: "text", placeholder: "MU09GBVONWWFIE", hint: "Profile and every call, in one request." },
-  { id: "tray", label: "Q4 — Prospects by tray", field: "tray", hint: "Live / won / lost." },
+  { id: "tray", label: "Q4 — Prospects by tray", field: "tray", hint: "New (scraped, best first) / live / won / lost." },
   { id: "due", label: "Q5 — Due for follow-up", field: "date", hint: "Who to call, on or before a date." },
   { id: "activity", label: "Q6 — Activity across all prospects", field: "days", placeholder: "7", hint: "What did I do this week." },
   { id: "pipeline", label: "Q7 — Pipeline counts", field: "none", hint: "How many at each stage." },
@@ -29,8 +29,8 @@ function columnsFor(rows: Record<string, unknown>[]): string[] {
   const keys = new Set<string>();
   for (const r of rows) for (const k of Object.keys(r)) keys.add(k);
   const preferred = [
-    "pk", "sk", "businessName", "phone", "instagramUrl", "status", "followUpDue",
-    "prospectId", "at", "by", "outcome", "notes", "open", "won", "lost",
+    "pk", "sk", "businessName", "score", "phone", "email", "instagramUrl", "status",
+    "followUpDue", "prospectId", "at", "by", "outcome", "notes", "new", "open", "won", "lost",
   ];
   const ordered = preferred.filter((k) => keys.has(k));
   const rest = [...keys].filter((k) => !preferred.includes(k) && !k.startsWith("gsi") && k !== "followUpSort");
@@ -117,6 +117,7 @@ export function DatabaseQuery() {
         )}
         {query.field === "tray" && (
           <select value={value || "open"} onChange={(e) => setValue(e.target.value)}>
+            <option value="new">New</option>
             <option value="open">Live</option>
             <option value="won">Won</option>
             <option value="lost">Lost</option>

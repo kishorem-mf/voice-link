@@ -19,7 +19,8 @@ Running it for more than one business:
   and one timeline, whether you or Sara made the call. Phase 1 (store + API)
   is built; the Database tab in the app inspects the live table.
 - [docs/crm-phase-1.5.md](docs/crm-phase-1.5.md) — importing and ranking
-  scraped Instagram leads, so phase 2 is built against real data.
+  scraped Instagram leads, so phase 2 is built against real data
+  (`npm run crm:import`, `npm run crm:unimport`).
 - [docs/crm-phase-2.md](docs/crm-phase-2.md) — the Prospects tab: a worked
   example of a morning using it, and what gets built.
 

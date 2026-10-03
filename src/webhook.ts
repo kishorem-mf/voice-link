@@ -58,6 +58,7 @@ import {
   followUpDate,
   normalisePhone,
   normaliseInstagram,
+  type ProspectStatus,
 } from "./crm/schema.js";
 import {
   listConversations,
@@ -429,8 +430,8 @@ export function createApp() {
   });
 
   /**
-   * Prospects in one tray (default: live), soonest follow-up first.
-   * ?status=won|lost for the other trays, ?status=all for everything.
+   * Prospects in one tray (default: live), in the tray's own order.
+   * ?status=new|won|lost for the other trays, ?status=all for everything.
    */
   app.get("/api/crm/prospects", async (req: Request, res: Response) => {
     const status = typeof req.query.status === "string" ? req.query.status : "open";
@@ -438,7 +439,7 @@ export function createApp() {
       res.json(
         status === "all"
           ? await listAllProspects()
-          : await listProspects(status as "open" | "won" | "lost"),
+          : await listProspects(status as ProspectStatus),
       );
     } catch (err) {
       res.status(crmConfigured() ? 502 : 400).json({ error: (err as Error).message });
@@ -558,11 +559,15 @@ export function createApp() {
             rows: [...(prospect ? [prospect] : []), ...events],
           });
         }
-        case "tray":
+        case "tray": {
+          const tray = (value || "open") as ProspectStatus;
           return res.json({
-            using: `status-index, status = ${value || "open"}`,
-            rows: await listProspects((value || "open") as any, limit),
+            using:
+              `status-index, status = ${tray}, ` +
+              (tray === "new" ? "best score first (inverted score)" : "soonest follow-up first"),
+            rows: await listProspects(tray, limit),
           });
+        }
         case "due":
           return res.json({
             using: `status-index, status = open AND followUpSort <= ${value || "today"}`,

@@ -10,6 +10,16 @@ the Database tab already queries, filters and shows raw JSON.
 Source for now: `instagram-influencer-scraping/outputs/all_leads.xlsx` — 54
 leads, 10 columns.
 
+**Status:** steps 1–4 are built (import, `new` tray, ranking, rollback).
+Step 5, the AI pass, is not.
+
+```bash
+npm run crm:import -- path/to/all_leads.xlsx            # dry run: preview + ranking
+npm run crm:import -- path/to/all_leads.xlsx --apply    # write, prints the batchId
+npm run crm:unimport -- <batchId>                       # dry run: what would go
+npm run crm:unimport -- <batchId> --apply               # roll back
+```
+
 ---
 
 ## What the data actually looks like
@@ -59,9 +69,12 @@ Result on the real file: **9 callable photographers · 6 callable boutiques ·
 
 ---
 
-## Step 1 — `src/crm/import.ts`
+## Step 1 — `src/crm/import.ts` ✅
 
-Reads the spreadsheet and writes prospects. Per row:
+Reads the spreadsheet (`.xlsx`, or `.csv` with the same headers) and writes
+prospects. The row mapping lives in [`src/crm/lead-map.ts`](../src/crm/lead-map.ts)
+and touches no network, so a dry run checks it even without AWS credentials.
+Per row:
 
 1. **Map** — `Name` → businessName, `Handle`/`Profile URL` → instagramUrl,
    `Contact` → phone or email.
@@ -86,23 +99,36 @@ npm run crm:import -- path/to/all_leads.xlsx          # dry run, prints a previe
 npm run crm:import -- path/to/all_leads.xlsx --apply  # writes
 ```
 
-The dry run reports before anything is written:
+The dry run reports before anything is written, then lists every new lead
+in the order the `new` tray will return them:
 
 ```
-54 rows · 54 new · 0 already known · 1 contact dropped (not a phone)
+54 rows · 54 new · 0 already known · 0 repeated in file · 0 unnamed · 1 contact dropped (not a phone)
 17 callable · 2 email-only · 37 no contact
 ```
 
-## Step 2 — the `new` tray
+A number without a country code is read as Indian and must come out as +91
+and ten digits; anything else is reported as dropped rather than stored as a
+plausible-looking foreign number. Category is read as a trade and a model
+(`wedding photography` → service, `fashion` → product; unrecognised →
+`unknown`, scored as a service).
+
+Followers, city, category, bio, score, source and batchId are stored on the
+prospect, so a ranking can be explained — and re-scored — without the file.
+
+## Step 2 — the `new` tray ✅
 
 Scraped leads land in `new`, ahead of `open` / `won` / `lost`. They are not
 prospects you have spoken to; calling one moves it to `open`.
 
-Uses the existing status index — no new infrastructure.
+Uses the existing status index — no new infrastructure. Logging the first
+call (by you or Sara) moves the lead to `open`, or straight to `lost`/`won` if
+the outcome closes it.
 
-## Step 3 — pre-ranked storage (`traySort`)
+## Step 3 — pre-ranked storage (`traySort`) ✅
 
-`followUpSort` is renamed `traySort` and carries different things per tray:
+The index's sort key carries different things per tray, computed by
+`traySort()` in `store.ts`:
 
 | Tray | `traySort` holds | So the tray reads back as |
 |---|---|---|
@@ -110,23 +136,29 @@ Uses the existing status index — no new infrastructure.
 | `open` | the follow-up date | most urgent first |
 
 One index returns each tray already ordered — no sorting in the browser on
-every page load.
+every page load. When a lead leaves `new`, its key is rewritten from score to
+follow-up date in the same update.
+
+The stored attribute keeps its name, `followUpSort`: it is the index's sort
+key, and DynamoDB cannot rename an index key without deleting and rebuilding
+the index on the live table. Only the function that fills it was renamed.
 
 The inversion is why the score range matters: a negative score has a minus
 sign, which does not sort. Validation caught 13 negative scores and the
 no-contact floor was raised to 200; the range is now 86…1073, inside four
 digits.
 
-## Step 4 — `crm:unimport <batchId>`
+## Step 4 — `crm:unimport <batchId>` ✅
 
 Deletes every prospect and pointer from one import. **This is what makes going
 before the UI reasonable rather than reckless** — if the mapping or scoring is
 wrong, roll back and re-run instead of hand-fixing 54 rows with no screen.
 
 Refuses to delete a prospect that has calls logged against it, so a rollback
-can never destroy work done after the import.
+can never destroy work done after the import. Like the import, it previews
+first and only deletes with `--apply`.
 
-## Step 5 — `src/crm/enrich.ts` (the AI pass, built second)
+## Step 5 — `src/crm/enrich.ts` (the AI pass, built second) — not built yet
 
 Deliberately **not** on the critical path: the scraper's `Category` already
 gives service vs product for this file, so the import works without any AI.
@@ -152,7 +184,7 @@ buried.
 
 ## Verification, before Phase 2 exists
 
-All through the **Database tab**: Q4 shows the `new` tray in rank order, the
+All through the **Database tab**: Q4 → New shows the `new` tray in rank order, the
 raw-JSON toggle shows what was actually stored, and the filter finds a
 specific lead. No new UI needed.
 
