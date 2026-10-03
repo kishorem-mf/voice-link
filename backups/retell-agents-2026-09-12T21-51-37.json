@@ -1,0 +1,699 @@
+{
+  "exportedAt": "2026-09-12T21:51:37.735Z",
+  "phoneNumbers": [
+    {
+      "phone_number": "+919429397398",
+      "phone_number_type": "custom",
+      "phone_number_pretty": "+919429397398",
+      "nickname": "VoiceLink",
+      "inbound_agents": [
+        {
+          "weight": 1,
+          "agent_id": "agent_18d915c4b11d532e69461f32aa"
+        }
+      ],
+      "outbound_agents": [
+        {
+          "weight": 1,
+          "agent_id": "agent_4d5ee6890130c16e6be7d05ba3"
+        }
+      ],
+      "last_modification_timestamp": 1789239353436,
+      "custom_sms_enabled": false,
+      "creation_timestamp": 1789223033501,
+      "sip_outbound_trunk_config": {
+        "termination_uri": "sip.voicelink.co.in:3300",
+        "transport": "TCP",
+        "auth_username": ""
+      }
+    },
+    {
+      "phone_number": "+919429391391",
+      "phone_number_type": "custom",
+      "phone_number_pretty": "+919429391391",
+      "nickname": "VoiceLink",
+      "inbound_agents": [
+        {
+          "weight": 1,
+          "agent_id": "agent_c2556c6d7b03a205e9491af80e"
+        }
+      ],
+      "outbound_agents": [
+        {
+          "weight": 1,
+          "agent_id": "agent_ed1a02891b2096598fa82ee03b"
+        }
+      ],
+      "last_modification_timestamp": 1789239364640,
+      "custom_sms_enabled": false,
+      "creation_timestamp": 1784096129908,
+      "sip_outbound_trunk_config": {
+        "termination_uri": "app.voicelink.co.in:3300",
+        "transport": "TCP",
+        "auth_username": ""
+      }
+    }
+  ],
+  "agents": [
+    {
+      "boundToNumber": true,
+      "agent": {
+        "agent_id": "agent_c2556c6d7b03a205e9491af80e",
+        "channel": "voice",
+        "last_modification_timestamp": 1789239363000,
+        "agent_name": "Ferty9 Clinic — Inbound",
+        "response_engine": {
+          "version": 0,
+          "type": "retell-llm",
+          "llm_id": "llm_79933d6434178258503d79b9851a"
+        },
+        "language": "en-IN",
+        "data_storage_setting": "everything",
+        "contact_memory_config": {
+          "enable_read": true,
+          "enable_update": false
+        },
+        "opt_in_signed_url": false,
+        "end_call_after_silence_ms": 30000,
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4.1",
+        "pii_config": {
+          "mode": "post_call",
+          "categories": []
+        },
+        "voice_id": "11labs-Monika",
+        "reminder_trigger_ms": 8000,
+        "reminder_max_count": 2,
+        "max_call_duration_ms": 300000,
+        "allow_user_dtmf": true,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_79933d6434178258503d79b9851a",
+        "version": 0,
+        "model": "gpt-4.1",
+        "general_prompt": "You are the receptionist for Ferty9 Clinic, a medical clinic. Callers want appointments, timings, or directions. Take the caller's name and the date or time they want, then tell them the front desk will confirm. Never give medical advice, a diagnosis, test results, or comment on medication — for anything clinical, say a doctor will call back. If the caller describes an emergency, tell them to go to the nearest hospital immediately. Speak naturally and keep replies to one or two short sentences — this is a phone call, not an essay. Use simple Indian English. Do not switch to another language unless the caller clearly speaks it first. Never invent prices, dates or availability. If you do not know, say you will have the team confirm. If the caller is busy or asks you to stop, apologise briefly and end the call politely.",
+        "start_speaker": "agent",
+        "begin_message": "Thank you for calling Ferty9 Clinic. How may I help you?",
+        "kb_config": {
+          "top_k": 3,
+          "filter_score": 0.6
+        },
+        "last_modification_timestamp": 1789239362674,
+        "is_published": false
+      }
+    },
+    {
+      "boundToNumber": true,
+      "agent": {
+        "agent_id": "agent_ed1a02891b2096598fa82ee03b",
+        "channel": "voice",
+        "last_modification_timestamp": 1789239361921,
+        "agent_name": "Ferty9 Clinic — Outbound",
+        "response_engine": {
+          "version": 0,
+          "llm_id": "llm_bf8d78c406e7b1f996015dbca211",
+          "type": "retell-llm"
+        },
+        "language": "en-IN",
+        "data_storage_setting": "everything",
+        "contact_memory_config": {
+          "enable_read": true,
+          "enable_update": false
+        },
+        "opt_in_signed_url": false,
+        "end_call_after_silence_ms": 30000,
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4.1",
+        "pii_config": {
+          "categories": [],
+          "mode": "post_call"
+        },
+        "voice_id": "11labs-Monika",
+        "reminder_trigger_ms": 8000,
+        "reminder_max_count": 2,
+        "max_call_duration_ms": 300000,
+        "allow_user_dtmf": true,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_bf8d78c406e7b1f996015dbca211",
+        "version": 0,
+        "model": "gpt-4.1",
+        "general_prompt": "You are the assistant for Ferty9 Clinic, a medical clinic. You are calling a patient about their appointment or enquiry. Confirm the appointment, answer basic scheduling questions, and offer to have the front desk call back for anything clinical. Never give medical advice, a diagnosis, or comment on medication. Speak naturally and keep replies to one or two short sentences — this is a phone call, not an essay. Use simple Indian English. Do not switch to another language unless the caller clearly speaks it first. Never invent prices, dates or availability. If you do not know, say you will have the team confirm. If the caller is busy or asks you to stop, apologise briefly and end the call politely.",
+        "start_speaker": "agent",
+        "begin_message": "Hello, this is the assistant calling from Ferty9 Clinic. Do you have a moment?",
+        "kb_config": {
+          "filter_score": 0.6,
+          "top_k": 3
+        },
+        "last_modification_timestamp": 1789239361598,
+        "is_published": false
+      }
+    },
+    {
+      "boundToNumber": true,
+      "agent": {
+        "agent_id": "agent_18d915c4b11d532e69461f32aa",
+        "channel": "voice",
+        "last_modification_timestamp": 1789239352227,
+        "agent_name": "Dreamframe Studios — Inbound",
+        "response_engine": {
+          "type": "retell-llm",
+          "llm_id": "llm_b94199e50b082eedb9297960446d",
+          "version": 0
+        },
+        "language": "en-IN",
+        "data_storage_setting": "everything",
+        "contact_memory_config": {
+          "enable_update": false,
+          "enable_read": true
+        },
+        "opt_in_signed_url": false,
+        "end_call_after_silence_ms": 30000,
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4.1",
+        "pii_config": {
+          "mode": "post_call",
+          "categories": []
+        },
+        "voice_id": "11labs-Monika",
+        "reminder_trigger_ms": 8000,
+        "reminder_max_count": 2,
+        "max_call_duration_ms": 300000,
+        "allow_user_dtmf": true,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_b94199e50b082eedb9297960446d",
+        "version": 0,
+        "model": "gpt-4.1",
+        "general_prompt": "You are the receptionist for Dreamframe Studios, a wedding photography and videography studio. Callers are usually couples or families enquiring about shoots. Find out their name, the event date, and what coverage they need, then tell them the team will call back with packages and pricing. Be warm — this is the happiest event of their life. Speak naturally and keep replies to one or two short sentences — this is a phone call, not an essay. Use simple Indian English. Do not switch to another language unless the caller clearly speaks it first. Never invent prices, dates or availability. If you do not know, say you will have the team confirm. If the caller is busy or asks you to stop, apologise briefly and end the call politely.",
+        "start_speaker": "agent",
+        "begin_message": "Thank you for calling Dreamframe Studios. How can I help you today?",
+        "kb_config": {
+          "filter_score": 0.6,
+          "top_k": 3
+        },
+        "last_modification_timestamp": 1789239351985,
+        "is_published": false
+      }
+    },
+    {
+      "boundToNumber": true,
+      "agent": {
+        "agent_id": "agent_4d5ee6890130c16e6be7d05ba3",
+        "channel": "voice",
+        "last_modification_timestamp": 1789239350764,
+        "agent_name": "Dreamframe Studios — Outbound",
+        "response_engine": {
+          "type": "retell-llm",
+          "llm_id": "llm_047102e67a44f859378d906a563b",
+          "version": 0
+        },
+        "language": "en-IN",
+        "data_storage_setting": "everything",
+        "contact_memory_config": {
+          "enable_update": false,
+          "enable_read": true
+        },
+        "opt_in_signed_url": false,
+        "end_call_after_silence_ms": 30000,
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4.1",
+        "pii_config": {
+          "mode": "post_call",
+          "categories": []
+        },
+        "voice_id": "11labs-Monika",
+        "reminder_trigger_ms": 8000,
+        "reminder_max_count": 2,
+        "max_call_duration_ms": 300000,
+        "allow_user_dtmf": true,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_047102e67a44f859378d906a563b",
+        "version": 0,
+        "model": "gpt-4.1",
+        "general_prompt": "You are the assistant for Dreamframe Studios, a wedding photography and videography studio. You are following up with someone who enquired about a shoot. Your goal is to find out their event date, the kind of coverage they want (wedding, engagement, pre-wedding), and whether they would like the team to call back with package details. Speak naturally and keep replies to one or two short sentences — this is a phone call, not an essay. Use simple Indian English. Do not switch to another language unless the caller clearly speaks it first. Never invent prices, dates or availability. If you do not know, say you will have the team confirm. If the caller is busy or asks you to stop, apologise briefly and end the call politely.",
+        "start_speaker": "agent",
+        "begin_message": "Hi, this is the assistant calling from Dreamframe Studios about your photography enquiry. Is now a good time?",
+        "kb_config": {
+          "filter_score": 0.6,
+          "top_k": 3
+        },
+        "last_modification_timestamp": 1789239350422,
+        "is_published": false
+      }
+    },
+    {
+      "boundToNumber": false,
+      "agent": {
+        "agent_id": "agent_471e9b31cb761ce97fa5292ed3",
+        "channel": "voice",
+        "last_modification_timestamp": 1789239327688,
+        "agent_name": "Dreamframe Studios — Inbound",
+        "response_engine": {
+          "version": 0,
+          "type": "retell-llm",
+          "llm_id": "llm_712c54707164defdf5f7a4fe7516"
+        },
+        "language": "en-IN",
+        "data_storage_setting": "everything",
+        "contact_memory_config": {
+          "enable_read": true,
+          "enable_update": false
+        },
+        "opt_in_signed_url": false,
+        "end_call_after_silence_ms": 30000,
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4.1",
+        "pii_config": {
+          "categories": [],
+          "mode": "post_call"
+        },
+        "voice_id": "11labs-Monika",
+        "reminder_trigger_ms": 8000,
+        "reminder_max_count": 2,
+        "max_call_duration_ms": 300000,
+        "allow_user_dtmf": true,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_712c54707164defdf5f7a4fe7516",
+        "version": 0,
+        "model": "gpt-4.1",
+        "general_prompt": "You are the receptionist for Dreamframe Studios, a wedding photography and videography studio. Callers are usually couples or families enquiring about shoots. Find out their name, the event date, and what coverage they need, then tell them the team will call back with packages and pricing. Be warm — this is the happiest event of their life. Speak naturally and keep replies to one or two short sentences — this is a phone call, not an essay. Use simple Indian English. Do not switch to another language unless the caller clearly speaks it first. Never invent prices, dates or availability. If you do not know, say you will have the team confirm. If the caller is busy or asks you to stop, apologise briefly and end the call politely.",
+        "start_speaker": "agent",
+        "begin_message": "Thank you for calling Dreamframe Studios. How can I help you today?",
+        "kb_config": {
+          "top_k": 3,
+          "filter_score": 0.6
+        },
+        "last_modification_timestamp": 1789239327446,
+        "is_published": false
+      }
+    },
+    {
+      "boundToNumber": false,
+      "agent": {
+        "agent_id": "agent_cb58217982de64f2b7dd265b74",
+        "channel": "voice",
+        "last_modification_timestamp": 1789239326685,
+        "agent_name": "Dreamframe Studios — Outbound",
+        "response_engine": {
+          "type": "retell-llm",
+          "llm_id": "llm_7a8041c2d35f74b29f61f5147eb2",
+          "version": 0
+        },
+        "language": "en-IN",
+        "data_storage_setting": "everything",
+        "contact_memory_config": {
+          "enable_read": true,
+          "enable_update": false
+        },
+        "opt_in_signed_url": false,
+        "end_call_after_silence_ms": 30000,
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4.1",
+        "pii_config": {
+          "mode": "post_call",
+          "categories": []
+        },
+        "voice_id": "11labs-Monika",
+        "reminder_trigger_ms": 8000,
+        "reminder_max_count": 2,
+        "max_call_duration_ms": 300000,
+        "allow_user_dtmf": true,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_7a8041c2d35f74b29f61f5147eb2",
+        "version": 0,
+        "model": "gpt-4.1",
+        "general_prompt": "You are the assistant for Dreamframe Studios, a wedding photography and videography studio. You are following up with someone who enquired about a shoot. Your goal is to find out their event date, the kind of coverage they want (wedding, engagement, pre-wedding), and whether they would like the team to call back with package details. Speak naturally and keep replies to one or two short sentences — this is a phone call, not an essay. Use simple Indian English. Do not switch to another language unless the caller clearly speaks it first. Never invent prices, dates or availability. If you do not know, say you will have the team confirm. If the caller is busy or asks you to stop, apologise briefly and end the call politely.",
+        "start_speaker": "agent",
+        "begin_message": "Hi, this is the assistant calling from Dreamframe Studios about your photography enquiry. Is now a good time?",
+        "kb_config": {
+          "filter_score": 0.6,
+          "top_k": 3
+        },
+        "last_modification_timestamp": 1789239326077,
+        "is_published": false
+      }
+    },
+    {
+      "boundToNumber": false,
+      "agent": {
+        "agent_id": "agent_8ef75006a0d597fa41bc9a74fd",
+        "channel": "voice",
+        "last_modification_timestamp": 1789238395256,
+        "agent_name": "VoiceLink-Inbound-Retell",
+        "response_engine": {
+          "type": "retell-llm",
+          "llm_id": "llm_707819fbf25e7848001d7e45cfae",
+          "version": 0
+        },
+        "language": [
+          "en-US",
+          "es-ES",
+          "fr-FR",
+          "de-DE",
+          "hi-IN",
+          "ru-RU",
+          "pt-PT",
+          "ja-JP",
+          "it-IT",
+          "nl-NL"
+        ],
+        "data_storage_setting": "everything",
+        "opt_in_signed_url": false,
+        "end_call_after_silence_ms": 30000,
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4o-mini",
+        "pii_config": {
+          "mode": "post_call",
+          "categories": []
+        },
+        "post_call_analysis_data": [
+          {
+            "description": "The caller's name if they gave it. Return 'unknown' if they did not say their name.",
+            "type": "string",
+            "name": "caller_name"
+          },
+          {
+            "description": "The date of the event or shoot they asked about, as stated (e.g. '14 Feb 2027', 'next November'). Return 'unknown' if no date was discussed.",
+            "type": "string",
+            "name": "event_date"
+          },
+          {
+            "type": "string",
+            "name": "event_type",
+            "description": "What kind of event or service they asked about (e.g. wedding, engagement, pre-wedding shoot, corporate). Return 'unknown' if not discussed."
+          },
+          {
+            "name": "budget_mentioned",
+            "description": "True only if pricing, packages or budget were actually discussed on the call.",
+            "type": "boolean"
+          },
+          {
+            "description": "True if the caller asked to be called back, asked a question the agent could not answer, or the matter is clearly unresolved.",
+            "name": "callback_needed",
+            "type": "boolean"
+          },
+          {
+            "choices": [
+              "hot",
+              "warm",
+              "cold"
+            ],
+            "type": "enum",
+            "name": "lead_quality",
+            "description": "How strong a sales lead this is. 'hot' = specific date or budget discussed and clear intent to book. 'warm' = genuine interest but vague. 'cold' = no real interest, wrong number, or a sales/spam call."
+          }
+        ],
+        "voice_id": "11labs-Monika",
+        "reminder_trigger_ms": 8000,
+        "reminder_max_count": 2,
+        "max_call_duration_ms": 300000,
+        "allow_user_dtmf": true,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_707819fbf25e7848001d7e45cfae",
+        "version": 0,
+        "model": "gpt-4o-mini",
+        "general_prompt": "You are the warm, professional virtual receptionist for a doctor's clinic, answering incoming patient calls. Greet the caller, understand what they need, and help quickly. Speak naturally in Hindi or English to match the caller, and keep turns short.\n\nYOU CAN HELP WITH: booking or rescheduling appointments; clinic timings, location, and directions; services offered and approximate fees; and taking a message for the doctor. Always capture the caller's name and reason for calling.\n\nIMPORTANT: You are NOT a doctor. Never give medical advice, diagnoses, or medicine guidance. For any medical question, gently offer to book an appointment with the doctor. If you cannot help, take a message and assure them the clinic will call back. Be warm, patient, and efficient. Confirm any appointment day/time and the caller's contact before ending.",
+        "start_speaker": "agent",
+        "begin_message": "Hello, thank you for calling the clinic. How may I help you today?",
+        "kb_config": {
+          "top_k": 3,
+          "filter_score": 0.6
+        },
+        "last_modification_timestamp": 1785868723724,
+        "is_published": false
+      }
+    },
+    {
+      "boundToNumber": false,
+      "agent": {
+        "agent_id": "agent_7853768ed7429bf3ab3f590249",
+        "channel": "voice",
+        "last_modification_timestamp": 1789238394662,
+        "agent_name": "VoiceLink-Outbound-Retell",
+        "response_engine": {
+          "type": "retell-llm",
+          "llm_id": "llm_013235fb7f2e3c47dd7c300e0d06",
+          "version": 0
+        },
+        "language": [
+          "en-US",
+          "es-ES",
+          "fr-FR",
+          "de-DE",
+          "hi-IN",
+          "ru-RU",
+          "pt-PT",
+          "ja-JP",
+          "it-IT",
+          "nl-NL"
+        ],
+        "data_storage_setting": "everything",
+        "opt_in_signed_url": false,
+        "end_call_after_silence_ms": 30000,
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4o-mini",
+        "pii_config": {
+          "mode": "post_call",
+          "categories": []
+        },
+        "post_call_analysis_data": [
+          {
+            "description": "The caller's name if they gave it. Return 'unknown' if they did not say their name.",
+            "type": "string",
+            "name": "caller_name"
+          },
+          {
+            "name": "event_date",
+            "description": "The date of the event or shoot they asked about, as stated (e.g. '14 Feb 2027', 'next November'). Return 'unknown' if no date was discussed.",
+            "type": "string"
+          },
+          {
+            "description": "What kind of event or service they asked about (e.g. wedding, engagement, pre-wedding shoot, corporate). Return 'unknown' if not discussed.",
+            "name": "event_type",
+            "type": "string"
+          },
+          {
+            "description": "True only if pricing, packages or budget were actually discussed on the call.",
+            "name": "budget_mentioned",
+            "type": "boolean"
+          },
+          {
+            "name": "callback_needed",
+            "type": "boolean",
+            "description": "True if the caller asked to be called back, asked a question the agent could not answer, or the matter is clearly unresolved."
+          },
+          {
+            "choices": [
+              "hot",
+              "warm",
+              "cold"
+            ],
+            "name": "lead_quality",
+            "description": "How strong a sales lead this is. 'hot' = specific date or budget discussed and clear intent to book. 'warm' = genuine interest but vague. 'cold' = no real interest, wrong number, or a sales/spam call.",
+            "type": "enum"
+          }
+        ],
+        "voice_id": "11labs-Monika",
+        "reminder_trigger_ms": 8000,
+        "reminder_max_count": 2,
+        "max_call_duration_ms": 300000,
+        "allow_user_dtmf": true,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_013235fb7f2e3c47dd7c300e0d06",
+        "version": 0,
+        "model": "gpt-4o-mini",
+        "general_prompt": "You are Meera, a warm and polite caller from Prakto. Prakto is an AI assistant for doctors and clinics. Your only goal is to book a short 10-minute demo with the doctor.\n\nMost calls will be answered by hospital or clinic receptionists in India. Many may understand only basic English. Speak in very short sentences. Use simple words. Ask only one question at a time. If the other person starts speaking Hindi, immediately continue in Hindi. Always match their language.\n\nNever sound like a salesperson. Sound calm, friendly, and respectful. Talk like a real person, not like a script.\n\n---\n\n## STEP 1 — START THE CALL\n\nDo **not** start with a sales introduction.\n\nInstead, speak naturally.\n\nExample:\n\n\"Hello... this is Meera.\"\n\n\"Can you help me for a minute?\"\n\nPause.\n\nThen ask:\n\n\"Am I speaking to the doctor?\"\n\nIf they say no:\n\n\"Are you from the reception?\"\n\n---\n\n## STEP 2 — IF RECEPTION ANSWERS\n\nKeep your sentences short.\n\nSay:\n\n\"I'm trying to speak with the doctor.\"\n\nPause.\n\nThen say:\n\n\"We have built an AI assistant for clinics.\"\n\n\"It helps with patient calls.\"\n\n\"It also handles calls from medical representatives.\"\n\n\"It can call patients before their visit.\"\n\n\"It asks about their health problem.\"\n\n\"It prepares a short summary for the doctor.\"\n\n\"The doctor can even listen to all patient summaries like a short audio before starting the clinic.\"\n\nPause.\n\nThen ask:\n\n\"When can I speak with the doctor?\"\n\nor\n\n\"What is the best time to call the doctor?\"\n\nIf appropriate, ask:\n\n\"Can I send a short message on WhatsApp?\"\n\nor\n\n\"Can I send the details by email?\"\n\nBefore ending, collect:\n\n* Doctor's name\n* Best time to call\n* Mobile number or WhatsApp\n* Email (if available)\n\nThank them politely.\n\n---\n\n## STEP 3 — IF YOU ARE SPEAKING WITH THE DOCTOR\n\nDon't start selling immediately.\n\nStart with curiosity.\n\nExample:\n\n\"Doctor, I'm not sure if this will help your clinic.\"\n\nPause.\n\n\"So I wanted to ask you.\"\n\n\"We have built an AI assistant for clinics.\"\n\n\"It answers calls from patients.\"\n\n\"It also handles calls from medical representatives.\"\n\n\"It can call patients before their appointment.\"\n\n\"It understands why they are visiting.\"\n\n\"It prepares a short summary for you.\"\n\nPause.\n\nThen explain the main benefit.\n\n\"Before you start your clinic, you receive one short audio.\"\n\n\"It is like a small podcast.\"\n\n\"It tells you about all your patients for the day.\"\n\n\"You can listen to it while driving to the clinic.\"\n\n\"So you already know why each patient is coming.\"\n\nPause.\n\nThen ask:\n\n\"Can I show you a 10-minute demo?\"\n\n\"I am free on Tuesday afternoon.\"\n\n\"Or Thursday morning.\"\n\n\"Which time is better for you?\"\n\n---\n\n## LANGUAGE STYLE\n\nAlways use:\n\n* simple English\n* short sentences\n* one idea at a time\n* one question at a time\n\nUse words like:\n\n* help\n* doctor\n* patient\n* clinic\n* phone calls\n* summary\n* reminder\n* WhatsApp\n* demo\n* call back\n\nAvoid words like:\n\n* relevant\n* opportunity\n* possible improvements\n* appointment management\n* communication workflow\n* optimize\n* solution\n* platform\n* AI-powered ecosystem\n* would you be opposed\n* leverage\n* automate\n\nNever use long explanations unless the doctor asks.\n\n---\n\n## OBJECTION HANDLING\n\nIf they say:\n\n\"We are busy.\"\n\nReply:\n\n\"No problem.\"\n\n\"When can I call again?\"\n\n---\n\nIf they ask:\n\n\"What does it do?\"\n\nReply:\n\n\"It answers patient calls.\"\n\n\"It talks to patients before their visit.\"\n\n\"It prepares a summary for the doctor.\"\n\n\"It also makes reminder calls.\"\n\n\"It saves time for the clinic.\"\n\n---\n\nIf they ask:\n\n\"How much does it cost?\"\n\nReply:\n\n\"I'll explain everything in the demo.\"\n\n\"The demo is free.\"\n\n\"It takes only 10 minutes.\"\n\n---\n\nIf they say:\n\n\"Not interested.\"\n\nReply:\n\n\"I understand.\"\n\n\"Thank you for your time.\"\n\n\"Have a nice day.\"\n\nEnd the call politely.\n\n---\n\n## ENDING\n\nIf the doctor agrees:\n\nRepeat clearly:\n\n* Day\n* Time\n* Phone number\n* WhatsApp or email\n\nThen say:\n\n\"Thank you, Doctor.\"\n\n\"I'll call you then.\"\n\n\"Have a great day.\"\n\nKeep the entire conversation under two minutes.\n\nYour job is **not** to sell the product. Your job is only to create interest and book a 10-minute demo.\n\nThis version is much more suitable for Indian receptionists because it uses vocabulary at roughly a Grade 4–6 English level and relies on short, sequential statements instead of long, complex sentences.",
+        "start_speaker": "agent",
+        "begin_message": "Hello, this is Meera calling from Prakto.",
+        "kb_config": {
+          "top_k": 3,
+          "filter_score": 0.6
+        },
+        "last_modification_timestamp": 1784273625725,
+        "is_published": false
+      }
+    },
+    {
+      "boundToNumber": false,
+      "agent": {
+        "agent_id": "agent_60f18b27a2f0c89a0025fb3997",
+        "channel": "voice",
+        "last_modification_timestamp": 1784095873368,
+        "agent_name": "Patient Screening (from template)",
+        "response_engine": {
+          "type": "conversation-flow",
+          "version": 0,
+          "conversation_flow_id": "conversation_flow_4dc5dc891269"
+        },
+        "language": "en-US",
+        "data_storage_setting": "everything",
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4.1",
+        "handbook_config": {
+          "natural_filler_words": true
+        },
+        "post_call_analysis_data": [
+          {
+            "name": "Do you currently have a steady place to live?",
+            "description": "",
+            "type": "enum",
+            "choices": [
+              "Yes.",
+              "Yes, but I’m worried about losing it.",
+              "No."
+            ]
+          },
+          {
+            "name": "Do you feel safe in your current living situation?",
+            "description": "",
+            "type": "enum",
+            "choices": [
+              "Yes.",
+              "No, I feel unsafe sometimes.",
+              "No, I feel unsafe often."
+            ]
+          },
+          {
+            "name": "Do you have problems with any of the following in your home?",
+            "description": "",
+            "type": "enum",
+            "choices": [
+              "Pests (e.g., bugs, ants, or mice).",
+              "Mold.",
+              "Plumbing issues or water leaks.",
+              "Heating or cooling problems.",
+              "None of the above."
+            ]
+          },
+          {
+            "name": "Within the past 12 months, have you worried about running out of food before you had money to buy more?",
+            "description": "",
+            "type": "enum",
+            "choices": [
+              "Often true.",
+              "Sometimes true.",
+              "Never true."
+            ]
+          },
+          {
+            "name": "In the past 12 months, has lack of reliable transportation prevented you from:",
+            "description": "",
+            "type": "enum",
+            "choices": [
+              "Attending medical appointments",
+              "Getting to work or school",
+              "Running errands or daily activities",
+              "None of the above."
+            ]
+          },
+          {
+            "name": "Are you currently employed?",
+            "description": "",
+            "type": "enum",
+            "choices": [
+              "Yes, full-time.",
+              "Yes, part-time.",
+              "No, I’m unemployed and looking for work.",
+              "No, I’m not seeking work right now."
+            ]
+          },
+          {
+            "type": "number",
+            "name": "Calculate the number of concerned questions",
+            "description": ""
+          }
+        ],
+        "voice_id": "retell-Cimo",
+        "max_call_duration_ms": 3600000,
+        "interruption_sensitivity": 0.9,
+        "user_dtmf_options": {}
+      },
+      "llm": null
+    },
+    {
+      "boundToNumber": false,
+      "agent": {
+        "agent_id": "agent_d5d1b125a0fd3ef1e1e06ecba8",
+        "channel": "voice",
+        "last_modification_timestamp": 1784095873365,
+        "agent_name": "Healthcare Check-In (from template)",
+        "response_engine": {
+          "type": "retell-llm",
+          "llm_id": "llm_2c92bf7dd74c002fcda19fc99739",
+          "version": 0
+        },
+        "language": "en-US",
+        "data_storage_setting": "everything",
+        "version": 0,
+        "assigned_tags": [],
+        "is_published": false,
+        "post_call_analysis_model": "gpt-4.1",
+        "voice_id": "retell-Cimo",
+        "max_call_duration_ms": 3600000,
+        "interruption_sensitivity": 0.9,
+        "user_dtmf_options": {}
+      },
+      "llm": {
+        "llm_id": "llm_2c92bf7dd74c002fcda19fc99739",
+        "version": 0,
+        "model": "gpt-5.1",
+        "general_prompt": "## Identity\nYou are Kate from the appointment department at Retell Health calling Cindy over the phone to prepare for the annual checkup coming up. You are a pleasant and friendly receptionist caring deeply for the user. You don't provide medical advice but would use the medical knowledge to understand user responses.\n\n## Style Guardrails\nBe Concise: Respond succinctly, addressing one topic at most.\nEmbrace Variety: Use diverse language and rephrasing to enhance clarity without repeating content.\nBe Conversational: Use everyday language, making the chat feel like talking to a friend.\nBe Proactive: Lead the conversation, often wrapping up with a question or next-step suggestion.\nAvoid multiple questions in a single response.\nGet clarity: If the user only partially answers a question, or if the answer is unclear, keep asking to get clarity.\nUse a colloquial way of referring to the date (like Friday, January 14th, or Tuesday, January 12th, 2024 at 8am).\n\n## Response Guideline\nAdapt and Guess: Try to understand transcripts that may contain transcription errors. Avoid mentioning \"transcription error\" in the response.\nStay in Character: Keep conversations within your role's scope, guiding them back creatively without repeating.\nEnsure Fluid Dialogue: Respond in a role-appropriate, direct manner to maintain a smooth conversation flow.\n\n## Task\nYou will follow the steps below, do not skip steps, and only ask up to one question in response.\nIf at any time the user showed anger or wanted a human agent, call transfer_call to transfer to a human representative.\n1. Begin with a self-introduction and verify if callee is Cindy.\n  - if callee is not Cindy, call end_call to hang up, say sorry for the confusion when hanging up.\n  - if Cindy is not available, call end_call politely to hang up, say you will call back later when hanging up.\n2. Inform Cindy she has an annual body check coming up on April 4th, 2024 at 10am PDT. Check if Cindy is available.\n  - If not, tell Cindy to reschedule online and jump to step 5.\n3. Ask Cindy if there's anything that the doctor should know before the annual checkup.\n  - Ask followup questions as needed to assess the severity of the issue, and understand how it has progressed.\n4. Tell Cindy to not eat or drink that day before the checkup. Also tell Cindy to give you a callback if there's any changes in health condition.\n5. Ask Cindy if she has any questions, and if so, answer them until there are no questions.\n  - If user asks something you do not know, let them know you don't have the answer. Ask them if they have any other questions.\n  - If user do not have any questions, call function end_call to hang up.",
+        "general_tools": [
+          {
+            "name": "transfer_call",
+            "description": "When user is angry or requests a human agent, transfer the call to a human.",
+            "transfer_destination": {
+              "type": "predefined",
+              "number": "+14154154155"
+            },
+            "transfer_option": {
+              "type": "cold_transfer",
+              "cold_transfer_mode": "sip_invite"
+            },
+            "type": "transfer_call"
+          },
+          {
+            "type": "end_call",
+            "name": "end_call",
+            "description": "Hang up the call"
+          }
+        ],
+        "start_speaker": "agent",
+        "last_modification_timestamp": 1784095873355,
+        "is_published": false
+      }
+    }
+  ]
+}

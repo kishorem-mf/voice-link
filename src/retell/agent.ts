@@ -18,7 +18,23 @@ export interface CreateRetellAgentOptions {
   voiceId?: string;
   /** BCP-47 language, defaults to en-US. */
   language?: string;
+  /** Conversation LLM. Defaults to the cost-optimised model, not Retell's. */
+  model?: string;
+  /** Model used once per call for the summary/analysis. */
+  postCallModel?: string;
 }
+
+/**
+ * Cost defaults, applied to every agent we create.
+ *
+ * Retell's own defaults are gpt-4.1 for both, which is 7.5x the per-minute LLM
+ * cost and ~7x the per-call analysis cost of these — roughly $0.16/min instead
+ * of $0.11/min all-in. Measured, not estimated: see docs/retell-rate-card.md.
+ * Set here rather than left to a follow-up step, because the overspend is
+ * silent and only shows up on the bill.
+ */
+export const DEFAULT_MODEL = "gpt-4o-mini";
+export const DEFAULT_POST_CALL_MODEL = "gpt-4o-mini";
 
 /** Sensible starter config for a VoiceLink outbound calling agent. */
 export const DEFAULT_RETELL_AGENT: CreateRetellAgentOptions = {
@@ -57,7 +73,11 @@ export async function createAgent(
 ): Promise<{ agentId: string; llmId: string }> {
   const llm = await post<{ llm_id?: string }>(
     "/create-retell-llm",
-    { general_prompt: opts.prompt, begin_message: opts.firstMessage },
+    {
+      general_prompt: opts.prompt,
+      begin_message: opts.firstMessage,
+      model: opts.model ?? DEFAULT_MODEL,
+    },
     apiKey,
   );
   if (!llm.llm_id) throw new Error(`No llm_id returned: ${JSON.stringify(llm)}`);
@@ -69,6 +89,7 @@ export async function createAgent(
       voice_id: opts.voiceId ?? "11labs-Adrian",
       agent_name: opts.name,
       language: opts.language ?? "en-US",
+      post_call_analysis_model: opts.postCallModel ?? DEFAULT_POST_CALL_MODEL,
       // Billing safety: cap runaway calls (Retell defaults are 60min max /
       // 10min silence). See docs/working-configuration.md.
       max_call_duration_ms: 300000, // 5 min hard cap

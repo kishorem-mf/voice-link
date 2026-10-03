@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type LoggedOutcome } from "../api";
 import { fmtDuration, fmtTimeISOToIST, statusKind } from "../format";
+import { ClientEmptyState } from "./ClientEmptyState";
 
 export function CallLogs() {
   const [logs, setLogs] = useState<LoggedOutcome[] | null>(null);
@@ -51,10 +52,10 @@ export function CallLogs() {
       {!logs ? (
         <div className="spinner">Loading…</div>
       ) : filtered.length === 0 ? (
-        <div className="muted">
-          No logged outcomes yet. These arrive via the post-call webhook
-          (<code>POST /webhook/call</code>).
-        </div>
+        <ClientEmptyState
+          what="logged outcomes"
+          hint="Outcomes arrive via the post-call webhook (POST /webhook/call). Completed Calls shows this client's calls straight from Retell."
+        />
       ) : (
         <div className="table-wrap">
           <table>

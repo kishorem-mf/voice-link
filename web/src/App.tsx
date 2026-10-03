@@ -5,14 +5,16 @@ import { MakeCall } from "./views/MakeCall";
 import { CallLogs } from "./views/CallLogs";
 import { CompletedCalls } from "./views/CompletedCalls";
 import { Settings } from "./views/Settings";
+import { Database } from "./views/Database";
 
-type Tab = "dashboard" | "call" | "logs" | "completed" | "settings";
+type Tab = "dashboard" | "call" | "logs" | "completed" | "database" | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "call", label: "Make a Call" },
   { id: "logs", label: "Call Logs" },
   { id: "completed", label: "Completed Calls" },
+  { id: "database", label: "Database" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -20,9 +22,11 @@ export function App() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [config, setConfig] = useState<AppConfig | null>(null);
 
-  useEffect(() => {
+  function refetchConfig() {
     api.config().then(setConfig).catch(() => setConfig(null));
-  }, []);
+  }
+
+  useEffect(refetchConfig, []);
 
   return (
     <div className="app">
@@ -33,6 +37,7 @@ export function App() {
         </div>
         {config && (
           <div className="meta">
+            {config.profileName && <div>Profile: <code>{config.profileName}</code></div>}
             <div>Agent: <code>{config.agentId}</code></div>
             <div>Number: <code>{config.phoneNumberId}</code></div>
             <div>Endpoint: <code>{config.baseUrl.replace("https://", "")}</code></div>
@@ -56,7 +61,8 @@ export function App() {
       {tab === "call" && <MakeCall />}
       {tab === "logs" && <CallLogs />}
       {tab === "completed" && <CompletedCalls />}
-      {tab === "settings" && <Settings />}
+      {tab === "database" && <Database />}
+      {tab === "settings" && <Settings onProfileChanged={refetchConfig} />}
     </div>
   );
 }

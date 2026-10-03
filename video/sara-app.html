@@ -1,0 +1,375 @@
+<title>Sara</title>
+<!-- ════════════════════════════════════════════════════════════════════
+     ✏️  EDIT ONLY THIS BLOCK PER CLINIC.  Everything below it stays the same.
+     See docs/sara-app-customization.md for the full guide.
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+  const CFG = {
+    clinicName: "Dr. Sharma's Clinic",
+
+    // ---- Calls tab ----
+    liveCall: "+91 73••• ••420",
+    totals: { answered: 27, booked: 11, newPatients: 16 },
+    calls: [
+      { i:"AR", c:"#0B9E86", name:"Ananya Reddy", num:"+91 98••• ••210", tag:"Acne / skin",   out:{t:"Booked · Tue 4:30", k:"book"}, time:"2m" },
+      { i:"RM", c:"#FF6F59", name:"Rahul Mehta",  num:"+91 90••• ••842", tag:"Knee pain",      out:{t:"New patient",       k:"new"},  time:"14m" },
+      { i:"FS", c:"#0A7E6D", name:"Fatima Sheikh",num:"+91 76••• ••190", tag:"Follow-up",      out:{t:"Booked · Today 6pm",k:"book"}, time:"31m" },
+      { i:"VN", c:"#7A5AF0", name:"Vikram Nair",  num:"+91 99••• ••501", tag:"Consultation",   out:{t:"Callback 5pm",      k:"callback"}, time:"48m" },
+      { i:"SP", c:"#E7A008", name:"Sneha Patil",  num:"+91 82••• ••745", tag:"Child fever",    out:{t:"Booked · Wed 11am", k:"book"}, time:"1h" },
+      { i:"—",  c:"#0B9E86", name:"Unknown caller",num:"+91 70••• ••338",tag:"Clinic timings", out:{t:"Info shared",       k:"info"}, time:"1h" }
+    ],
+
+    // ---- Patients tab ----
+    ownedCount: "1,248",
+    addedToday: 16,
+    patients: [
+      { i:"AR", c:"#0B9E86", name:"Ananya Reddy",  num:"+91 98765 4••10", tag:"Acne / skin",   st:{t:"Booked", k:"book"}, when:"Tue 4:30", saved:true },
+      { i:"RM", c:"#FF6F59", name:"Rahul Mehta",   num:"+91 90123 8••42", tag:"Knee pain",     st:{t:"New",    k:"new"},  when:"Today" },
+      { i:"FS", c:"#0A7E6D", name:"Fatima Sheikh", num:"+91 76540 1••90", tag:"Follow-up",     st:{t:"Booked", k:"book"}, when:"Today 6pm" },
+      { i:"VN", c:"#7A5AF0", name:"Vikram Nair",   num:"+91 99000 5••01", tag:"Consultation",  st:{t:"Callback", k:"callback"}, when:"5pm" },
+      { i:"SP", c:"#E7A008", name:"Sneha Patil",   num:"+91 82345 7••45", tag:"Child fever",   st:{t:"Booked", k:"book"}, when:"Wed 11am" },
+      { i:"KG", c:"#0B9E86", name:"Karan Gupta",   num:"+91 73920 6••88", tag:"Hair loss",     st:{t:"New",    k:"new"},  when:"Today" }
+    ],
+
+    // ---- Broadcast tab ----
+    templates: ["New treatment", "Special offer", "Health camp", "Reminder"],
+    selectedTemplate: 0,
+    message: "Namaste 🙏 We've introduced <b>advanced laser skin treatment</b> at Dr. Sharma's Clinic. Book your slot this week — reply or call us back.",
+    audience: "📱 Skin & acne patients",
+    audienceCount: 412,
+    campaigns: [
+      { e:"⛑️", title:"Free health camp — Sunday", ago:"2 days ago", sent:"1,248", delivered:"1,231", booked:"63" },
+      { e:"🏷️", title:"Diwali dental offer — 20% off", ago:"1 week ago", sent:"1,180", delivered:"1,164", booked:"88" }
+    ],
+
+    // ---- Pharmacy tab (products the clinic's pharmacy can promo/sell) ----
+    pharmacyTotals: { orders: 34, revenue: "₹18,600" },
+    products: [
+      { i:"💊", name:"Derma-Glow Sunscreen SPF 50",  price:"₹549", tag:"Skincare",    stock:"In stock",  promo:true },
+      { i:"🧴", name:"Acne Control Face Wash",         price:"₹299", tag:"Skincare",    stock:"In stock",  promo:true },
+      { i:"💊", name:"Vitamin D3 60K (4 caps)",        price:"₹120", tag:"Supplement",  stock:"In stock",  promo:false },
+      { i:"🧪", name:"Hair Growth Serum",              price:"₹899", tag:"Haircare",    stock:"Low stock", promo:true },
+      { i:"💊", name:"Multivitamin — 30 tabs",         price:"₹350", tag:"Supplement",  stock:"In stock",  promo:false }
+    ],
+    promoTemplate: "🎁 Special for you: Get 20% off <b>Derma-Glow Sunscreen SPF 50</b> this week — available at our in-clinic pharmacy. Reply to order.",
+    promoAudience: "📱 Skin & acne patients",
+    promoAudienceCount: 412
+  };
+</script>
+<!-- ════════════════════════════════════════════════════════════════════ -->
+
+<style>
+  *{box-sizing:border-box} body{margin:0}
+  :root{
+    --ground:#EDF3F2; --card:#FFFFFF; --ink:#0C2A2E; --muted:#6A8C89;
+    --brand:#0B9E86; --brand-deep:#0A7E6D; --brand-tint:#E2F4EF;
+    --coral:#FF6F59; --coral-tint:#FFE7E2; --coral-deep:#D8452F;
+    --amber:#E7A008; --amber-tint:#FCEFCF;
+    --violet:#7A5AF0; --violet-tint:#EDE9FE;
+    --line:#E6EDEC; --shadow:0 8px 26px rgba(11,63,55,.10);
+  }
+  :root[data-theme="dark"]{ --ground:#EDF3F2; --card:#FFFFFF; --ink:#0C2A2E; }
+  html,body{height:100%}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums;
+  }
+  .app{max-width:440px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+  .scroll{flex:1;overflow-y:auto;padding:0 16px 108px;-webkit-overflow-scrolling:touch}
+
+  .top{position:sticky;top:0;z-index:5;background:linear-gradient(180deg,var(--ground) 72%,transparent);
+       padding:18px 16px 12px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:9px}
+  .logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(150deg,var(--brand),var(--brand-deep));
+        display:grid;place-items:center;box-shadow:0 4px 12px rgba(10,126,109,.35)}
+  .logo span{display:block;width:4px;height:14px;border-radius:3px;background:#fff;box-shadow:8px 0 #fff,-8px 0 rgba(255,255,255,.55);
+        animation:eq 1s ease-in-out infinite alternate}
+  @keyframes eq{from{height:7px}to{height:14px}}
+  .brand b{font-size:20px;letter-spacing:-.02em}
+  .brand b i{color:var(--coral);font-style:normal}
+  .brand small{display:block;color:var(--muted);font-size:11px;margin-top:1px;font-weight:600}
+  .live{display:inline-flex;align-items:center;gap:6px;background:var(--brand-tint);color:var(--brand-deep);
+        font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px}
+  .live i{width:7px;height:7px;border-radius:50%;background:var(--brand);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(11,158,134,.5)}70%{box-shadow:0 0 0 7px rgba(11,158,134,0)}100%{box-shadow:0 0 0 0 rgba(11,158,134,0)}}
+
+  h1{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:16px 4px 10px;font-weight:700}
+
+  /* Calls */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .stat{background:var(--card);border-radius:16px;padding:14px 12px;box-shadow:var(--shadow)}
+  .stat .n{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .stat .l{font-size:11.5px;color:var(--muted);margin-top:5px;font-weight:600}
+  .stat.book .n{color:var(--brand-deep)} .stat.new .n{color:var(--coral)}
+  .callnow{margin-top:14px;background:linear-gradient(135deg,#0C2A2E,#124a44);color:#EAF7F4;border-radius:18px;
+        padding:16px;display:flex;align-items:center;gap:13px;box-shadow:var(--shadow)}
+  .callnow .ph{width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.12);display:grid;place-items:center;font-size:20px}
+  .callnow .t1{font-size:12px;color:#8FD9CC;font-weight:700;letter-spacing:.03em}
+  .callnow .t2{font-size:16px;font-weight:700;margin-top:2px}
+  .callnow .dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:#69E0C6;margin-left:3px;animation:blink 1.2s infinite}
+  .callnow .dots span:nth-child(2){animation-delay:.2s}.callnow .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  .list{display:flex;flex-direction:column;gap:10px}
+  .row{background:var(--card);border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+  .av{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;flex:0 0 auto}
+  .who{flex:1;min-width:0}
+  .who b{font-size:15.5px;letter-spacing:-.01em}
+  .who .num{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:600}
+  .chips{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+  .chip{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .c-tag{background:var(--brand-tint);color:var(--brand-deep)}
+  .c-book{background:var(--brand);color:#fff}
+  .c-callback{background:var(--amber-tint);color:#9A6B00}
+  .c-info{background:#EEF2F1;color:#5F7A77}
+  .c-new{background:var(--coral-tint);color:#C4402C}
+  .time{font-size:12px;color:var(--muted);font-weight:600;flex:0 0 auto;align-self:flex-start;margin-top:2px}
+
+  /* Patients */
+  .headline{margin:8px 4px 0}
+  .headline .big{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.08}
+  .headline .big em{font-style:italic;font-family:Georgia,"Times New Roman",serif;color:var(--brand-deep);font-weight:700}
+  .headline .sub{color:var(--muted);font-size:14px;margin-top:8px;font-weight:600}
+  .owned{display:inline-flex;align-items:center;gap:7px;margin-top:12px;background:var(--brand);color:#fff;
+        font-weight:700;font-size:13px;padding:8px 13px;border-radius:999px;box-shadow:0 6px 16px rgba(11,158,134,.35)}
+  .search{margin:16px 0 8px;background:var(--card);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:9px;
+        box-shadow:var(--shadow);color:var(--muted);font-size:14.5px;font-weight:600}
+  .search svg{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2}
+  .count{display:flex;align-items:baseline;gap:8px;margin:4px 4px 10px}
+  .count b{font-size:15px} .count span{color:var(--muted);font-size:12.5px;font-weight:600}
+  .p{background:var(--card);border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+  .pi{flex:1;min-width:0}
+  .pi .nm{font-size:15.5px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+  .pi .num{font-size:12.8px;color:var(--muted);margin-top:2px;font-weight:600;letter-spacing:.02em}
+  .pi .cond{margin-top:7px}
+  .meta{text-align:right;flex:0 0 auto}
+  .meta .st{font-size:11.5px;font-weight:700}
+  .meta .st.book{color:var(--brand-deep)} .meta .st.new{color:var(--coral)} .meta .st.callback{color:#9A6B00}
+  .meta .dt{font-size:11px;color:var(--muted);margin-top:3px;font-weight:600}
+
+  /* Broadcast + Pharmacy shared */
+  .card{background:var(--card);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+  .lbl{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:9px}
+  .templates{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .tpl{border:1.5px solid var(--line);border-radius:13px;padding:11px 12px;font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
+  .tpl .e{font-size:17px}
+  .tpl.sel{border-color:var(--coral);background:var(--coral-tint);color:var(--coral-deep)}
+  .msg{background:#F6FAF9;border:1px solid var(--line);border-radius:13px;padding:13px;font-size:14px;line-height:1.5;color:var(--ink);margin-top:14px}
+  .msg b{color:var(--brand-deep)}
+  .aud{display:flex;align-items:center;justify-content:space-between;margin-top:12px;background:var(--brand-tint);
+       border-radius:13px;padding:12px 14px}
+  .aud .who{font-weight:700;font-size:14px;color:var(--brand-deep)}
+  .aud .cnt{font-weight:800;font-size:15px;color:var(--brand-deep)}
+  .send{margin-top:13px;background:var(--coral);color:#fff;border:none;width:100%;padding:15px;border-radius:14px;
+        font-weight:800;font-size:16px;box-shadow:0 8px 20px rgba(255,111,89,.4)}
+  .send.violet{background:var(--violet);box-shadow:0 8px 20px rgba(122,90,240,.4)}
+  .sent{display:flex;flex-direction:column;gap:10px}
+  .s{background:var(--card);border-radius:16px;padding:13px 14px;box-shadow:var(--shadow)}
+  .s .h{display:flex;align-items:center;gap:9px}
+  .s .h .e{font-size:18px}.s .h b{font-size:14.5px;flex:1}.s .h .ago{font-size:11.5px;color:var(--muted);font-weight:600}
+  .s .stat{display:flex;gap:16px;margin-top:10px}
+  .s .stat div{font-size:12.5px;color:var(--muted);font-weight:600}
+  .s .stat b{display:block;font-size:17px;color:var(--ink);font-weight:800;letter-spacing:-.02em}
+  .s .stat .g b{color:var(--brand-deep)}
+
+  /* Pharmacy */
+  .prow{background:var(--card);border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+  .picon{width:42px;height:42px;border-radius:13px;background:var(--violet-tint);display:grid;place-items:center;font-size:20px;flex:0 0 auto}
+  .pinfo{flex:1;min-width:0}
+  .pinfo b{font-size:14.5px;letter-spacing:-.005em;display:block}
+  .pinfo .meta2{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}
+  .price{font-size:14px;font-weight:800;color:var(--violet)}
+  .stockdot{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--brand-tint);color:var(--brand-deep)}
+  .stockdot.low{background:var(--amber-tint);color:#9A6B00}
+  .promopill{font-size:10.5px;font-weight:800;color:#fff;background:var(--coral);padding:3px 8px;border-radius:999px;flex:0 0 auto}
+
+  /* Tabs */
+  .tabs{position:fixed;left:0;right:0;bottom:0;max-width:440px;margin:0 auto;background:rgba(255,255,255,.92);
+        backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:space-around;
+        padding:9px 6px max(9px,env(safe-area-inset-bottom))}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10.5px;font-weight:700;flex:1;
+       text-decoration:none;background:none;border:none;font-family:inherit;cursor:pointer;padding:0}
+  .tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tab.on{color:var(--brand-deep)}
+  .tab.on svg{fill:var(--brand-tint)}
+
+  .view{display:none}
+  .view.active{display:block}
+  .fade{opacity:0;transform:translateY(9px);animation:up .5s ease forwards}
+  @keyframes up{to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}.fade{opacity:1;transform:none}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <div class="brand">
+      <div class="logo"><span></span></div>
+      <div><b>sar<i>a</i></b><small id="clinic"></small></div>
+    </div>
+    <div class="live" id="liveBadge"><i></i> Online 24×7</div>
+  </div>
+
+  <div class="scroll">
+
+    <!-- ═══ CALLS ═══ -->
+    <section id="view-calls" class="view active">
+      <div class="callnow fade">
+        <div class="ph">📞</div>
+        <div style="flex:1"><div class="t1">SARA IS ON A CALL</div>
+          <div class="t2"><span id="livecall"></span> <span class="dots"><span></span><span></span><span></span></span></div></div>
+      </div>
+      <h1>Today</h1>
+      <div class="stats fade">
+        <div class="stat"><div class="n" id="t-ans">0</div><div class="l">Calls answered</div></div>
+        <div class="stat book"><div class="n" id="t-book">0</div><div class="l">Appointments</div></div>
+        <div class="stat new"><div class="n" id="t-new">0</div><div class="l">New patients</div></div>
+      </div>
+      <h1>Recent calls</h1>
+      <div class="list" id="calls"></div>
+    </section>
+
+    <!-- ═══ PATIENTS ═══ -->
+    <section id="view-patients" class="view">
+      <div class="headline fade">
+        <div class="big">Your patients.<br><em>Yours</em> forever.</div>
+        <div class="sub">Every caller saved — number &amp; reason. Not Instagram's audience.</div>
+        <span class="owned">🔒 <span id="owned"></span> patients owned by you</span>
+      </div>
+      <div class="search fade">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        Search name, number, or condition…
+      </div>
+      <div class="count fade"><b id="count"></b><span id="added"></span></div>
+      <div class="list" id="patients"></div>
+    </section>
+
+    <!-- ═══ BROADCAST ═══ -->
+    <section id="view-broadcast" class="view">
+      <div class="headline fade">
+        <div class="big" style="font-size:26px">Reach them directly.<br>On their phone.</div>
+        <div class="sub">New treatment, offer, camp or reminder — straight to your patients.</div>
+      </div>
+      <div class="card fade">
+        <div class="lbl">Send a message</div>
+        <div class="templates" id="templates"></div>
+        <div class="msg" id="msg"></div>
+        <div class="aud"><div class="who" id="aud"></div><div class="cnt" id="audc"></div></div>
+        <button class="send" id="send"></button>
+      </div>
+      <h1>Recent broadcasts</h1>
+      <div class="sent" id="campaigns"></div>
+    </section>
+
+    <!-- ═══ PHARMACY ═══ -->
+    <section id="view-pharmacy" class="view">
+      <div class="headline fade">
+        <div class="big" style="font-size:26px">Your pharmacy.<br>One tap from a call.</div>
+        <div class="sub">Sell products straight to the patients Sara already saved.</div>
+      </div>
+      <div class="stats fade">
+        <div class="stat"><div class="n" id="ph-orders">0</div><div class="l">Orders this month</div></div>
+        <div class="stat" style="grid-column:span 2"><div class="n" id="ph-revenue" style="color:var(--violet)">₹0</div><div class="l">Pharmacy revenue</div></div>
+      </div>
+      <h1>Products</h1>
+      <div class="list" id="products"></div>
+
+      <h1>Promote a product</h1>
+      <div class="card fade">
+        <div class="lbl">Message</div>
+        <div class="msg" id="promoMsg" style="margin-top:0"></div>
+        <div class="aud"><div class="who" id="promoAud"></div><div class="cnt" id="promoAudc"></div></div>
+        <button class="send violet" id="promoSend"></button>
+      </div>
+    </section>
+
+  </div>
+
+  <nav class="tabs">
+    <button class="tab on" data-view="calls">
+      <svg viewBox="0 0 24 24"><path d="M4 4h3l2 5-2 1a11 11 0 0 0 5 5l1-2 5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 2 6a2 2 0 0 1 2-2z"/></svg>Calls</button>
+    <button class="tab" data-view="patients">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6.5a3 3 0 0 1 0 5.6M18.5 20a5 5 0 0 0-3-4.6"/></svg>Patients</button>
+    <button class="tab" data-view="broadcast">
+      <svg viewBox="0 0 24 24"><path d="M4 6l16-2v16L4 18zM4 9l-1 0v6l1 0M9 19v2"/></svg>Broadcast</button>
+    <button class="tab" data-view="pharmacy">
+      <svg viewBox="0 0 24 24"><path d="M6 3h9l3 4v14H6zM10 9v6M7 12h6"/></svg>Pharmacy</button>
+  </nav>
+</div>
+
+<script>
+  // ---- Tab switching (single-page app, no reloads) ----
+  document.querySelectorAll(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(b => b.classList.remove("on"));
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      btn.classList.add("on");
+      const view = document.getElementById("view-" + btn.dataset.view);
+      view.classList.add("active");
+      // Replay entrance animation each time a tab is opened.
+      view.querySelectorAll(".fade, .row, .p, .prow").forEach(el => {
+        el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
+      });
+    });
+  });
+
+  // ---- Render from CONFIG ----
+  document.getElementById("clinic").textContent = CFG.clinicName;
+
+  // Calls
+  document.getElementById("livecall").textContent = CFG.liveCall;
+  document.getElementById("t-ans").textContent = CFG.totals.answered;
+  document.getElementById("t-book").textContent = CFG.totals.booked;
+  document.getElementById("t-new").textContent = CFG.totals.newPatients;
+  document.getElementById("calls").innerHTML = CFG.calls.map((c,idx)=>`
+    <div class="row fade" style="animation-delay:${idx*0.05}s">
+      <div class="av" style="background:${c.c}">${c.i}</div>
+      <div class="who"><b>${c.name}</b><div class="num">${c.num}</div>
+        <div class="chips"><span class="chip c-tag">${c.tag}</span><span class="chip c-${c.out.k}">${c.out.t}</span></div></div>
+      <div class="time">${c.time}</div>
+    </div>`).join("");
+
+  // Patients
+  document.getElementById("owned").textContent = CFG.ownedCount + " ";
+  document.getElementById("count").textContent = CFG.ownedCount + " patients";
+  document.getElementById("added").textContent = "· " + CFG.addedToday + " added today";
+  document.getElementById("patients").innerHTML = CFG.patients.map((p,idx)=>`
+    <div class="p fade" style="animation-delay:${idx*0.05}s">
+      <div class="av" style="background:${p.c}">${p.i}</div>
+      <div class="pi"><div class="nm">${p.name}${p.saved?' <span style="font-size:11px">🟢</span>':''}</div>
+        <div class="num">${p.num}</div><div class="cond"><span class="chip c-tag">${p.tag}</span></div></div>
+      <div class="meta"><div class="st ${p.st.k}">${p.st.t}</div><div class="dt">${p.when}</div></div>
+    </div>`).join("");
+
+  // Broadcast
+  const emojis = ["💉","🏷️","⛑️","⏰"];
+  document.getElementById("templates").innerHTML = CFG.templates.map((t,i)=>
+    `<div class="tpl${i===CFG.selectedTemplate?' sel':''}"><span class="e">${emojis[i]||"•"}</span> ${t}</div>`).join("");
+  document.getElementById("msg").innerHTML = CFG.message;
+  document.getElementById("aud").textContent = CFG.audience;
+  document.getElementById("audc").textContent = CFG.audienceCount + " patients";
+  document.getElementById("send").textContent = "Send to " + CFG.audienceCount + " patients →";
+  document.getElementById("campaigns").innerHTML = CFG.campaigns.map((c,idx)=>`
+    <div class="s fade" style="animation-delay:${idx*0.06}s">
+      <div class="h"><span class="e">${c.e}</span><b>${c.title}</b><span class="ago">${c.ago}</span></div>
+      <div class="stat"><div>Sent<b>${c.sent}</b></div><div>Delivered<b>${c.delivered}</b></div><div class="g">Booked<b>${c.booked}</b></div></div>
+    </div>`).join("");
+
+  // Pharmacy
+  document.getElementById("ph-orders").textContent = CFG.pharmacyTotals.orders;
+  document.getElementById("ph-revenue").textContent = CFG.pharmacyTotals.revenue;
+  document.getElementById("products").innerHTML = CFG.products.map((p,idx)=>`
+    <div class="prow fade" style="animation-delay:${idx*0.05}s">
+      <div class="picon">${p.i}</div>
+      <div class="pinfo"><b>${p.name}</b>
+        <div class="meta2">
+          <span class="price">${p.price}</span>
+          <span class="stockdot${p.stock.startsWith('Low')?' low':''}">${p.stock}</span>
+          ${p.promo?'<span class="promopill">PROMO</span>':''}
+        </div>
+      </div>
+    </div>`).join("");
+  document.getElementById("promoMsg").innerHTML = CFG.promoTemplate;
+  document.getElementById("promoAud").textContent = CFG.promoAudience;
+  document.getElementById("promoAudc").textContent = CFG.promoAudienceCount + " patients";
+  document.getElementById("promoSend").textContent = "Send promo to " + CFG.promoAudienceCount + " patients →";
+</script>

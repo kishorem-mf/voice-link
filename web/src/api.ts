@@ -5,6 +5,43 @@ export interface AppConfig {
   phoneNumberId: string;
   baseUrl: string;
   techPrefix: string | null;
+  profileId?: string;
+  profileName?: string;
+  businessName?: string;
+  isDemo?: boolean;
+}
+
+export interface VoiceLinkProfile {
+  id: string;
+  name: string;
+  fromNumber: string;
+  terminationUri: string;
+  transport?: string;
+  techPrefix?: string;
+  businessName?: string;
+  businessType?: string;
+  /** Set once the profile has its own agents; until then it falls back to .env. */
+  outboundAgentId?: string;
+  inboundAgentId?: string;
+  /** Whether this client has its own bot. The token itself never leaves the server. */
+  hasTelegramBot?: boolean;
+  telegramChatId?: string;
+  /** Throwaway profile for sales demos — safe to re-point alerts on. */
+  isDemo?: boolean;
+}
+
+export interface BusinessTypeOption {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface ProvisionResult {
+  outboundAgentId: string;
+  inboundAgentId: string;
+  created: boolean;
+  numberBound: boolean;
+  bindError?: string;
 }
 
 export interface CallResult {
@@ -29,6 +66,7 @@ export interface ConversationSummary {
   durationSecs: number;
   messageCount: number;
   startUnix: number;
+  direction?: string;
 }
 
 export interface TranscriptTurn {
@@ -86,8 +124,11 @@ export interface PostCallModelOption {
   pricePerCall: number;
 }
 
-export interface PersonaPreset {
+export interface PersonaTemplate {
+  id: string;
   name: string;
+  /** "Recommended" (this trade) or "Other" (generic). */
+  group: string;
   prompt: string;
   firstMessage: string;
 }
@@ -95,6 +136,20 @@ export interface PersonaPreset {
 export interface Persona {
   prompt: string;
   firstMessage: string;
+}
+
+export interface TableShape {
+  name: string;
+  region: string;
+  /** Rows returned — never more than the requested limit. */
+  itemCount: number;
+  /** True when the table holds more rows than were returned. */
+  truncated: boolean;
+  limit: number;
+  partitionKey: string;
+  sortKey: string;
+  indexes: { name: string; partitionKey: string; sortKey?: string }[];
+  rows: Record<string, unknown>[];
 }
 
 export interface CallLimits {
@@ -111,6 +166,11 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   config: () => fetch("/api/config").then(json<AppConfig>),
+  crmTable: (limit = 20) => fetch(`/api/crm/table?limit=${limit}`).then(json<TableShape>),
+  crmQuery: (q: string, value = "", limit = 50) =>
+    fetch(`/api/crm/query?q=${q}&value=${encodeURIComponent(value)}&limit=${limit}`).then(
+      json<{ using: string; note?: string; rows: Record<string, unknown>[] }>,
+    ),
   stats: () => fetch("/api/stats").then(json<Stats>),
   logs: () => fetch("/api/logs").then(json<LoggedOutcome[]>),
   conversations: () => fetch("/api/conversations").then(json<ConversationSummary[]>),
@@ -155,13 +215,17 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model }),
     }).then(json<{ model: string }>),
-  personas: () => fetch("/api/retell/personas").then(json<PersonaPreset[]>),
-  getPrompt: () => fetch("/api/retell/agent/prompt").then(json<Persona>),
-  setPrompt: (prompt: string, firstMessage: string) =>
+  templates: (direction: "outbound" | "inbound" = "outbound") =>
+    fetch(`/api/retell/templates?direction=${direction}`).then(json<PersonaTemplate[]>),
+  directions: () =>
+    fetch("/api/retell/directions").then(json<{ outbound: boolean; inbound: boolean }>),
+  getPrompt: (direction: "outbound" | "inbound" = "outbound") =>
+    fetch(`/api/retell/agent/prompt?direction=${direction}`).then(json<Persona>),
+  setPrompt: (prompt: string, firstMessage: string, direction: "outbound" | "inbound" = "outbound") =>
     fetch("/api/retell/agent/prompt", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, firstMessage }),
+      body: JSON.stringify({ prompt, firstMessage, direction }),
     }).then(json<Persona>),
   getLimits: () => fetch("/api/retell/agent/limits").then(json<CallLimits>),
   setLimits: (maxDurationMs: number, silenceMs: number) =>
@@ -170,4 +234,65 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ maxDurationMs, silenceMs }),
     }).then(json<CallLimits>),
+  profiles: () =>
+    fetch("/api/profiles").then(json<{ active: string; profiles: VoiceLinkProfile[] }>),
+  setActiveProfile: (id: string) =>
+    fetch("/api/profiles/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).then(
+      json<{
+        active: string;
+        profile: VoiceLinkProfile;
+        /** True when a shared DID was re-pointed at this client's agents. */
+        claimed?: boolean;
+        claimError?: string;
+      }>,
+    ),
+  claimNumber: (id: string) =>
+    fetch(`/api/profiles/${id}/claim`, { method: "POST" }).then(
+      json<{ profile: VoiceLinkProfile; sharedWith: string[] }>,
+    ),
+  addProfile: (p: Omit<VoiceLinkProfile, "id">) =>
+    fetch("/api/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    }).then(json<VoiceLinkProfile>),
+  businessTypes: () => fetch("/api/business-types").then(json<BusinessTypeOption[]>),
+  updateProfile: (id: string, patch: { businessName?: string; businessType?: string }) =>
+    fetch(`/api/profiles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }).then(json<VoiceLinkProfile>),
+  setProfileTelegram: (id: string, patch: { botToken?: string; chatId?: string }) =>
+    fetch(`/api/profiles/${id}/telegram`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }).then(json<{ ok: boolean; botUsername?: string; error?: string }>),
+  telegramChats: (id: string) =>
+    fetch(`/api/profiles/${id}/telegram/chats`).then(
+      json<{
+        botUsername?: string;
+        botLink: string | null;
+        currentChatId?: string;
+        chats: { chatId: string; name: string; type: string }[];
+        error?: string;
+      }>,
+    ),
+  testProfileTelegram: (id: string) =>
+    fetch(`/api/profiles/${id}/telegram/test`, { method: "POST" }).then(
+      json<{ ok: boolean; error?: string }>,
+    ),
+  provisionProfile: (id: string, force = false) =>
+    fetch(`/api/profiles/${id}/provision`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force }),
+    }).then(json<ProvisionResult>),
+  importProfile: (id: string) =>
+    fetch(`/api/profiles/${id}/import`, { method: "POST" }).then(json<unknown>),
 };

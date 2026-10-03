@@ -6,3 +6,6 @@ web/dist/
 *.log
 call-outcomes.json
 recordings/
+notified-calls.json
+voicelink-profiles.json
+*.tsbuildinfo

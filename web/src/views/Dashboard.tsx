@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Stats } from "../api";
 import { fmtDuration } from "../format";
+import { ClientEmptyState, ClientBadge } from "./ClientEmptyState";
 
 export function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -13,6 +14,11 @@ export function Dashboard() {
   if (error) return <div className="panel error">Failed to load stats: {error}</div>;
   if (!stats) return <div className="panel spinner">Loading stats…</div>;
 
+  // A row of zeros looks like lost data; name the client instead.
+  if (stats.totalConversations === 0 && stats.loggedOutcomes === 0) {
+    return <ClientEmptyState what="calls" />;
+  }
+
   const tiles = [
     { label: "Total calls", value: String(stats.totalConversations) },
     { label: "Completed", value: String(stats.completed) },
@@ -24,6 +30,7 @@ export function Dashboard() {
 
   return (
     <div>
+      <ClientBadge />
       <div className="stats">
         {tiles.map((t) => (
           <div className="stat" key={t.label}>

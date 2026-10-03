@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type ConversationSummary, type ConversationDetail } from "../api";
 import { fmtDuration, fmtTimeIST, statusKind } from "../format";
+import { ClientEmptyState, ClientBadge } from "./ClientEmptyState";
 
 export function CompletedCalls() {
   const [list, setList] = useState<ConversationSummary[] | null>(null);
@@ -33,6 +34,7 @@ export function CompletedCalls() {
 
   return (
     <div className="panel">
+      <ClientBadge />
       <h2>Completed calls ({filtered.length})</h2>
       <div className="row" style={{ marginBottom: 14 }}>
         <input
@@ -51,13 +53,21 @@ export function CompletedCalls() {
       {!list ? (
         <div className="spinner">Loading…</div>
       ) : filtered.length === 0 ? (
-        <div className="muted">No conversations found.</div>
+        <ClientEmptyState
+          what="completed calls"
+          hint={
+            query
+              ? "No calls match that search. Clear the filter to see this client's calls."
+              : undefined
+          }
+        />
       ) : (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Started (IST)</th>
+                <th>Direction</th>
                 <th>Status</th>
                 <th>Duration</th>
                 <th>Messages</th>
@@ -72,6 +82,11 @@ export function CompletedCalls() {
                   onClick={() => setSelected(c.conversationId)}
                 >
                   <td>{fmtTimeIST(c.startUnix)}</td>
+                  <td>
+                    <span className="badge neutral">
+                      {c.direction === "inbound" ? "📥 Inbound" : c.direction === "outbound" ? "📤 Outbound" : "—"}
+                    </span>
+                  </td>
                   <td><span className={`badge ${statusKind(c.status)}`}>{c.status}</span></td>
                   <td>{fmtDuration(c.durationSecs)}</td>
                   <td>{c.messageCount || "—"}</td>

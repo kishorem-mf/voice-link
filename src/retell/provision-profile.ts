@@ -1,0 +1,219 @@
+import { createAgent } from "./agent.js";
+import { getBusinessType, renderPersona } from "./business-types.js";
+import { getProfile, updateProfile, listProfiles, type VoiceLinkProfile } from "./profiles.js";
+import { getRetellApiKey, getRetellBaseUrl } from "./config.js";
+import { importNumber } from "./import-number.js";
+import { updatePostCallAnalysis, fieldsForBusinessType } from "../notify/analysis.js";
+
+/**
+ * Give a profile its own Retell agents, so that client's DID answers with that
+ * client's persona.
+ *
+ * Why a dedicated pair per profile rather than reusing shared agents: Retell
+ * decides which agent answers an INBOUND call from the DID's own
+ * `inbound_agents` binding. The app is not in that path and cannot influence
+ * it, so the notion of an "active profile" means nothing to an incoming call.
+ * Two DIDs pointed at one agent therefore answer identically — which is why a
+ * wedding-photography number was answering as a clinic receptionist.
+ *
+ * Settings that are genuinely global (voice, model, language, call limits)
+ * still sync across whichever agents belong to the active profile; only the
+ * persona is per-client.
+ */
+
+/** Language pair that suits Indian English callers without false switching. */
+const DEFAULT_LANGUAGE = "en-IN";
+const DEFAULT_VOICE = "11labs-Monika";
+
+export interface ProvisionResult {
+  profile: VoiceLinkProfile;
+  outboundAgentId: string;
+  inboundAgentId: string;
+  created: boolean;
+  /** True when the DID was also re-pointed at the new agents. */
+  numberBound: boolean;
+  bindError?: string;
+}
+
+/**
+ * Create (or re-create) the agent pair for a profile and bind its DID to them.
+ *
+ * `force` re-provisions even if agents already exist — used when the business
+ * type changes and the personas need rebuilding from the new template.
+ */
+export async function provisionProfileAgents(
+  profileId: string,
+  opts: { force?: boolean; voiceId?: string; language?: string } = {},
+): Promise<ProvisionResult> {
+  const profile = getProfile(profileId);
+  const businessName = profile.businessName || profile.name;
+  const type = getBusinessType(profile.businessType);
+
+  if (profile.outboundAgentId && profile.inboundAgentId && !opts.force) {
+    return {
+      profile,
+      outboundAgentId: profile.outboundAgentId,
+      inboundAgentId: profile.inboundAgentId,
+      created: false,
+      numberBound: false,
+    };
+  }
+
+  const voiceId = opts.voiceId ?? DEFAULT_VOICE;
+  const language = opts.language ?? DEFAULT_LANGUAGE;
+  const outboundPersona = renderPersona(type.outbound, businessName);
+  const inboundPersona = renderPersona(type.inbound, businessName);
+
+  const outbound = await createAgent({
+    name: `${businessName} — Outbound`,
+    prompt: outboundPersona.prompt,
+    firstMessage: outboundPersona.firstMessage,
+    voiceId,
+    language,
+  });
+
+  const inbound = await createAgent({
+    name: `${businessName} — Inbound`,
+    prompt: inboundPersona.prompt,
+    firstMessage: inboundPersona.firstMessage,
+    voiceId,
+    language,
+  });
+
+  // Remember what this profile pointed at, so a rebuild doesn't strand it.
+  const replaced = [profile.outboundAgentId, profile.inboundAgentId].filter(
+    (id): id is string => Boolean(id),
+  );
+
+  const updated = updateProfile(profileId, {
+    outboundAgentId: outbound.agentId,
+    inboundAgentId: inbound.agentId,
+  });
+
+  // Delete the pair we just replaced. Without this every rebuild left two
+  // agents behind that nothing referenced — they accumulated silently until a
+  // manual cleanup. Done after the profile is updated, so a failure here
+  // leaves litter rather than a profile pointing at a deleted agent.
+  for (const oldId of replaced) {
+    await deleteAgent(oldId).catch((err) => {
+      console.warn(`⚠️  Could not delete replaced agent ${oldId}: ${(err as Error).message}`);
+    });
+  }
+
+  // Configure the post-call tags (lead quality, event date, callback needed).
+  // Easy to forget, and the failure is silent: alerts still arrive, just with
+  // the triage line missing — so it's done here rather than left to a separate
+  // command someone has to remember after every provision.
+  const fields = fieldsForBusinessType(profile.businessType);
+  for (const agentId of [outbound.agentId, inbound.agentId]) {
+    await updatePostCallAnalysis(agentId, fields).catch((err) => {
+      console.warn(`⚠️  Could not set analysis fields on ${agentId}: ${(err as Error).message}`);
+    });
+  }
+
+  // Re-point the DID at the new agents. Without this the number keeps
+  // answering with whatever it was bound to before, and the new inbound
+  // persona would never be heard.
+  let numberBound = false;
+  let bindError: string | undefined;
+  try {
+    await importNumber(
+      updated.fromNumber,
+      outbound.agentId,
+      updated.terminationUri,
+      updated.transport ?? "TCP",
+      inbound.agentId,
+    );
+    numberBound = true;
+  } catch (err) {
+    bindError = (err as Error).message;
+  }
+
+  return {
+    profile: updated,
+    outboundAgentId: outbound.agentId,
+    inboundAgentId: inbound.agentId,
+    created: true,
+    numberBound,
+    bindError,
+  };
+}
+
+/** Delete an agent — used when re-provisioning, so orphans don't accumulate. */
+export async function deleteAgent(agentId: string): Promise<void> {
+  await fetch(`${getRetellBaseUrl()}/delete-agent/${agentId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${getRetellApiKey()}` },
+  });
+}
+
+/** Which profiles share a DID with this one (demo setups only). */
+export function profilesSharingNumber(profileId: string): VoiceLinkProfile[] {
+  const me = getProfile(profileId);
+  return listProfiles().filter((p) => p.id !== me.id && p.fromNumber === me.fromNumber);
+}
+
+/**
+ * Point this profile's DID at this profile's existing agents.
+ *
+ * Distinct from provisioning: no agents are created, deleted or rewritten —
+ * it only moves the number's binding. That matters when several demo profiles
+ * share one DID, because a number can route to exactly one agent pair, so
+ * whichever business you're demoing has to claim it first.
+ *
+ * In production each client owns their own DID and this is a no-op that never
+ * needs calling — which is the point. Sharing a number is the only temporary
+ * part of the setup; nothing else has to change when a client gets their own.
+ */
+export async function claimNumber(profileId: string): Promise<{
+  profile: VoiceLinkProfile;
+  sharedWith: string[];
+}> {
+  const profile = getProfile(profileId);
+  if (!profile.outboundAgentId || !profile.inboundAgentId) {
+    throw new Error(
+      `"${profile.name}" has no agents yet — create this client's agents first.`,
+    );
+  }
+  await importNumber(
+    profile.fromNumber,
+    profile.outboundAgentId,
+    profile.terminationUri,
+    profile.transport ?? "TCP",
+    profile.inboundAgentId,
+  );
+  return {
+    profile,
+    sharedWith: profilesSharingNumber(profileId).map((p) => p.businessName || p.name),
+  };
+}
+
+// Run directly: npm run profiles -- provision <id> [--force]
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const id = process.argv[2];
+  const force = process.argv.includes("--force");
+  if (!id) {
+    console.error("Usage: tsx src/retell/provision-profile.ts <profileId> [--force]");
+    process.exit(1);
+  }
+  try {
+    const r = await provisionProfileAgents(id, { force });
+    if (!r.created) {
+      console.log(`Profile "${id}" already has agents. Use --force to rebuild them.`);
+      console.log(`   outbound = ${r.outboundAgentId}`);
+      console.log(`   inbound  = ${r.inboundAgentId}`);
+    } else {
+      console.log(`✅ Provisioned agents for "${r.profile.name}" (${getBusinessType(r.profile.businessType).label}):`);
+      console.log(`   outbound = ${r.outboundAgentId}`);
+      console.log(`   inbound  = ${r.inboundAgentId}`);
+      console.log(
+        r.numberBound
+          ? `   ${r.profile.fromNumber} now routes to these agents.`
+          : `   ⚠️  Could not bind ${r.profile.fromNumber}: ${r.bindError}`,
+      );
+    }
+  } catch (err) {
+    console.error(`❌ ${(err as Error).message}`);
+    process.exit(1);
+  }
+}
