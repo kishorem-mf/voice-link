@@ -432,6 +432,17 @@ export async function addEvent(
     values[":st"] = status;
   }
 
+  // Stamp when a prospect first became live.
+  //
+  // createdAt cannot stand in for this: for an imported lead it records the
+  // import, so a prospect scraped in September and first called today would
+  // read as a month old. The transition happens once and cannot be
+  // reconstructed afterwards, so it is recorded as it happens.
+  if (status === "open" && !before?.openedAt) {
+    sets.push("openedAt = :oa");
+    values[":oa"] = at;
+  }
+
   // Leaving `new` re-keys the prospect even without a follow-up, or it would
   // sit in its new tray under a score that now reads as a date.
   if (followUpDue !== undefined || before?.status === "new") {

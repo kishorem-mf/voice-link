@@ -45,8 +45,8 @@ function columnsFor(rows: Record<string, unknown>[]): string[] {
   // an odd ranking can be read off the row rather than guessed at.
   const preferred = [
     "pk", "sk", "businessName", "score", "followers", "phone", "city",
-    "status", "followUpDue", "at", "by", "outcome", "notes", "prospectId",
-    "open", "won", "lost",
+    "status", "openedAt", "lastContactedAt", "followUpDue", "at", "by",
+    "outcome", "notes", "prospectId", "open", "won", "lost",
   ];
   const ordered = preferred.filter((k) => present.has(k));
   const rest = [...present].filter(

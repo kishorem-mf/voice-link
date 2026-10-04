@@ -40,6 +40,12 @@ export interface Prospect {
   status: ProspectStatus;
   /** ISO date (YYYY-MM-DD) the next follow-up is due. */
   followUpDue?: string;
+  /**
+   * When this prospect first became live — set once, on the `new` -> `open`
+   * transition. Distinct from createdAt, which for an imported lead records
+   * the import rather than first contact.
+   */
+  openedAt?: string;
   lastContactedAt?: string;
   notes?: string;
   /** Present when the only contact a lead gave is an email address. */
