@@ -41,9 +41,12 @@ function rowType(r: Record<string, unknown>) {
 function columnsFor(rows: Record<string, unknown>[]): string[] {
   const present = new Set<string>();
   for (const r of rows) for (const k of Object.keys(r)) present.add(k);
+  // Order matters: score sits next to the followers it was derived from, so
+  // an odd ranking can be read off the row rather than guessed at.
   const preferred = [
-    "pk", "sk", "businessName", "score", "phone", "status", "followUpDue",
-    "at", "by", "outcome", "notes", "prospectId", "open", "won", "lost",
+    "pk", "sk", "businessName", "score", "followers", "phone", "city",
+    "status", "followUpDue", "at", "by", "outcome", "notes", "prospectId",
+    "open", "won", "lost",
   ];
   const ordered = preferred.filter((k) => present.has(k));
   const rest = [...present].filter(
@@ -51,7 +54,7 @@ function columnsFor(rows: Record<string, unknown>[]): string[] {
       !preferred.includes(k) &&
       !["gsiEvt", "followUpSort", "createdAt", "updatedAt", "instagramUrl"].includes(k),
   );
-  return [...ordered, ...rest].slice(0, 9);
+  return [...ordered, ...rest].slice(0, 10);
 }
 
 export function Database() {
@@ -248,11 +251,26 @@ export function Database() {
                       <span style={{ color: t.tone, fontSize: 11, whiteSpace: "nowrap" }}>● {t.label}</span>
                     </td>
                     {cols.map((c) => {
-                      const text = cell(r[c]);
+                      const raw = r[c];
+                      const text = cell(raw);
                       const mono = ["pk", "sk", "phone", "prospectId"].includes(c);
+                      // Numbers right-align so magnitudes line up down the column.
+                      const numeric = typeof raw === "number";
                       return (
-                        <td key={c} title={text.length > 36 ? text : undefined}>
-                          {mono ? <code>{text}</code> : text.length > 48 ? text.slice(0, 48) + "…" : text}
+                        <td
+                          key={c}
+                          title={text.length > 36 ? text : undefined}
+                          style={numeric ? { textAlign: "right", fontVariantNumeric: "tabular-nums" } : undefined}
+                        >
+                          {mono ? (
+                            <code>{text}</code>
+                          ) : numeric ? (
+                            (raw as number).toLocaleString("en-IN")
+                          ) : text.length > 48 ? (
+                            text.slice(0, 48) + "…"
+                          ) : (
+                            text
+                          )}
                         </td>
                       );
                     })}
