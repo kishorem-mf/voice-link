@@ -37,22 +37,103 @@ function rowType(r: Record<string, unknown>) {
   return { label: "row", tone: "var(--muted)" };
 }
 
-/** Columns worth a place, in a stable order. Noise stays in the row detail. */
-function columnsFor(rows: Record<string, unknown>[]): string[] {
+/**
+ * How long ago, as an age rather than a date.
+ *
+ * Ages answer the question actually being asked — is this going stale? — at a
+ * glance, where a date has to be subtracted from today first. The exact
+ * timestamp is still available on hover and in the drawer.
+ */
+function age(iso: unknown): string {
+  if (iso === undefined || iso === null || iso === "") return "—";
+  const t = Date.parse(String(iso));
+  if (Number.isNaN(t)) return "—";
+  const days = Math.floor((Date.now() - t) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days}d`;
+  if (days < 365) return `${Math.round(days / 30)}mo`;
+  return `${Math.round(days / 365)}y`;
+}
+
+/** Full timestamp for the hover, in local time. */
+function exact(iso: unknown): string | undefined {
+  if (!iso) return undefined;
+  const t = Date.parse(String(iso));
+  return Number.isNaN(t) ? undefined : new Date(t).toLocaleString();
+}
+
+/** A follow-up date read as an age, so it sits in the same units as the rest. */
+function dueAge(iso: unknown): { text: string; overdue: boolean } {
+  if (!iso) return { text: "—", overdue: false };
+  const t = Date.parse(`${String(iso)}T00:00:00`);
+  if (Number.isNaN(t)) return { text: String(iso), overdue: false };
+  const days = Math.floor((Date.now() - t) / 86400000);
+  if (days > 0) return { text: `${days}d ago`, overdue: true };
+  if (days === 0) return { text: "today", overdue: true };
+  return { text: `in ${Math.abs(days)}d`, overdue: false };
+}
+
+/** Columns are rendered as an age rather than their raw value. */
+const AGE_COLUMNS = new Set(["openedAt", "lastContactedAt", "at", "createdAt"]);
+
+const HEADINGS: Record<string, string> = {
+  businessName: "business",
+  openedAt: "first contact",
+  lastContactedAt: "last contact",
+  followUpDue: "due",
+  at: "when",
+  by: "who",
+  businessModel: "model",
+  prospectId: "id",
+};
+
+/**
+ * Columns per query, rather than one set for every result.
+ *
+ * A calling queue and a pipeline view want different things: showing "first
+ * contact" against 54 leads nobody has rung yet is two empty columns where
+ * the score and follower count should be. The tab already knows which query
+ * ran, so the columns follow it.
+ */
+const COLUMNS_BY_QUERY: Record<string, string[]> = {
+  tray: ["businessName", "score", "followers", "phone", "city"],
+  due: ["businessName", "followUpDue", "lastContactedAt", "phone", "city"],
+  activity: ["businessName", "at", "by", "outcome", "notes"],
+  history: ["sk", "at", "by", "outcome", "notes"],
+  by_phone: ["businessName", "score", "phone", "openedAt", "lastContactedAt", "status"],
+  by_instagram: ["businessName", "score", "instagramUrl", "openedAt", "lastContactedAt", "status"],
+  pipeline: ["new", "open", "won", "lost"],
+};
+
+/** The live/won/lost trays want the pipeline shape, not the calling queue. */
+const TRAY_PIPELINE_COLUMNS = [
+  "businessName", "openedAt", "lastContactedAt", "followUpDue", "phone", "city",
+];
+
+/** All rows stays wide — it is the raw view and should look like one. */
+function columnsFor(rows: Record<string, unknown>[], q: string, trayValue: string): string[] {
   const present = new Set<string>();
   for (const r of rows) for (const k of Object.keys(r)) present.add(k);
-  // Order matters: score sits next to the followers it was derived from, so
-  // an odd ranking can be read off the row rather than guessed at.
+
+  const chosen =
+    q === "tray" && trayValue !== "new"
+      ? TRAY_PIPELINE_COLUMNS
+      : COLUMNS_BY_QUERY[q];
+
+  if (chosen) {
+    const kept = chosen.filter((c) => present.has(c));
+    return kept.length ? kept : [...present].slice(0, 8);
+  }
+
   const preferred = [
     "pk", "sk", "businessName", "score", "followers", "phone", "city",
     "status", "openedAt", "lastContactedAt", "followUpDue", "at", "by",
-    "outcome", "notes", "prospectId", "open", "won", "lost",
+    "outcome", "notes", "prospectId",
   ];
   const ordered = preferred.filter((k) => present.has(k));
   const rest = [...present].filter(
-    (k) =>
-      !preferred.includes(k) &&
-      !["gsiEvt", "followUpSort", "createdAt", "updatedAt", "instagramUrl"].includes(k),
+    (k) => !preferred.includes(k) && !["gsiEvt", "followUpSort", "updatedAt"].includes(k),
   );
   return [...ordered, ...rest].slice(0, 10);
 }
@@ -134,7 +215,7 @@ export function Database() {
   const shown = filter.trim()
     ? rows.filter((r) => JSON.stringify(r).toLowerCase().includes(filter.trim().toLowerCase()))
     : rows;
-  const cols = columnsFor(shown);
+  const cols = columnsFor(shown, q, value);
 
   const cell = (v: unknown) =>
     v === undefined || v === null || v === "" ? "—" : String(v);
@@ -256,7 +337,7 @@ export function Database() {
             <thead>
               <tr>
                 <th style={{ width: 86 }}>type</th>
-                {cols.map((c) => <th key={c}>{c}</th>)}
+                {cols.map((c) => <th key={c}>{HEADINGS[c] ?? c}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -274,6 +355,37 @@ export function Database() {
                     </td>
                     {cols.map((c) => {
                       const raw = r[c];
+
+                      // Timestamps read as ages; the exact moment is on hover.
+                      if (AGE_COLUMNS.has(c)) {
+                        const shownAge = age(raw);
+                        return (
+                          <td key={c} title={exact(raw)} style={{ whiteSpace: "nowrap" }}>
+                            <span className={shownAge === "—" ? "hint" : undefined}>
+                              {shownAge === "—" && c === "lastContactedAt" && r.status
+                                ? "never"
+                                : shownAge}
+                            </span>
+                          </td>
+                        );
+                      }
+
+                      // A follow-up in the same units as everything beside it,
+                      // so an overdue one does not need subtracting from today.
+                      if (c === "followUpDue") {
+                        const d = dueAge(raw);
+                        return (
+                          <td key={c} title={raw ? String(raw) : undefined} style={{ whiteSpace: "nowrap" }}>
+                            <span
+                              className={d.text === "—" ? "hint" : undefined}
+                              style={d.overdue ? { color: "var(--bad)" } : undefined}
+                            >
+                              {d.text}
+                            </span>
+                          </td>
+                        );
+                      }
+
                       const text = cell(raw);
                       const mono = ["pk", "sk", "phone", "prospectId"].includes(c);
                       // Numbers right-align so magnitudes line up down the column.
