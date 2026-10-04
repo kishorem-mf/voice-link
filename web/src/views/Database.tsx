@@ -20,7 +20,7 @@ const QUERIES: { id: string; label: string; field: Field; placeholder?: string }
   { id: "activity", label: "Recent activity", field: "days", placeholder: "7" },
   { id: "by_phone", label: "Find by phone", field: "text", placeholder: "7842160862" },
   { id: "by_instagram", label: "Find by Instagram", field: "text", placeholder: "@handle" },
-  { id: "history", label: "Prospect history", field: "text", placeholder: "prospectId" },
+  { id: "history", label: "Prospect history", field: "text", placeholder: "name, phone, @handle or id" },
   { id: "pipeline", label: "Pipeline counts", field: "none" },
 ];
 
@@ -65,6 +65,8 @@ export function Database() {
   const [using, setUsing] = useState("");
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
+  // The selected prospect's calls, so a history lookup never needs an id typed.
+  const [history, setHistory] = useState<Record<string, unknown>[] | null>(null);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const [table, setTable] = useState<TableShape | null>(null);
   const [busy, setBusy] = useState(false);
@@ -98,6 +100,19 @@ export function Database() {
   useEffect(() => {
     if (schemaOpen && !table) api.crmTable(1).then(setTable).catch(() => {});
   }, [schemaOpen]);
+
+  /** Open a row, and for a prospect fetch its calls alongside. */
+  async function openRow(r: Record<string, unknown>) {
+    setDetail(r);
+    setHistory(null);
+    if (r.sk !== "PROFILE" || !r.prospectId) return;
+    try {
+      const h = await api.crmQuery("history", String(r.prospectId), 50);
+      setHistory(h.rows.filter((x) => String(x.sk ?? "").startsWith("EVT#")));
+    } catch {
+      setHistory([]);
+    }
+  }
 
   function pickQuery(id: string) {
     const next = QUERIES.find((x) => x.id === id)!;
@@ -243,7 +258,7 @@ export function Database() {
                 return (
                   <tr
                     key={`${r.pk}|${r.sk}|${i}`}
-                    onClick={() => setDetail(r)}
+                    onClick={() => void openRow(r)}
                     style={{ cursor: "pointer" }}
                     title="Show stored JSON"
                   >
@@ -286,7 +301,7 @@ export function Database() {
       {detail && (
         <Fragment>
           <div
-            onClick={() => setDetail(null)}
+            onClick={() => { setDetail(null); setHistory(null); }}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 40 }}
           />
           <aside
@@ -299,16 +314,46 @@ export function Database() {
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
               <b>{String(detail.businessName ?? detail.sk ?? "Row")}</b>
               <button
-                onClick={() => setDetail(null)}
+                onClick={() => { setDetail(null); setHistory(null); }}
                 style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18 }}
               >
                 ✕
               </button>
             </div>
-            <div className="hint" style={{ marginTop: 4 }}>
-              Stored as separate named attributes, not one JSON blob.
+            {detail.sk === "PROFILE" && (
+              <div style={{ marginTop: 14 }}>
+                <div className="lbl">
+                  Call history
+                  {history && ` · ${history.length}`}
+                </div>
+                {history === null && <div className="hint">Loading…</div>}
+                {history?.length === 0 && (
+                  <div className="hint">No calls logged yet.</div>
+                )}
+                {history?.map((e) => (
+                  <div
+                    key={String(e.at)}
+                    style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}
+                  >
+                    <div style={{ fontSize: 13 }}>
+                      <b>{String(e.outcome ?? "—")}</b>{" "}
+                      <span className="hint">
+                        {/* Stored UTC; shown in local time, or a late-night call
+                            reads as the previous evening. */}
+                        {new Date(String(e.at)).toLocaleString()} · {String(e.by)}
+                      </span>
+                    </div>
+                    {e.notes ? <div className="hint" style={{ marginTop: 2 }}>{String(e.notes)}</div> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="lbl" style={{ marginTop: 18 }}>Stored attributes</div>
+            <div className="hint" style={{ marginTop: 0 }}>
+              Separate named fields, not one JSON blob.
             </div>
-            <pre style={{ marginTop: 12, fontSize: 12, lineHeight: 1.55, overflowX: "auto" }}>
+            <pre style={{ marginTop: 8, fontSize: 12, lineHeight: 1.55, overflowX: "auto" }}>
               <code>{JSON.stringify(detail, null, 2)}</code>
             </pre>
           </aside>

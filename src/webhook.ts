@@ -139,6 +139,42 @@ function personaAgentId(direction?: unknown): string | undefined {
   return getRetellOutboundAgentId();
 }
 
+
+/**
+ * Find a prospect from whatever the operator has to hand — the generated id,
+ * a phone number, an Instagram handle, or part of the business name.
+ *
+ * Ids are what the table stores but not what a person remembers; the lookup
+ * order runs cheapest-first so the exact paths cost one read each and the
+ * name search is the fallback.
+ */
+async function resolveProspect(
+  value: string,
+): Promise<{ prospect: Awaited<ReturnType<typeof getProspect>>; how: string }> {
+  const v = value.trim();
+
+  const byId = await getProspect(v).catch(() => null);
+  if (byId) return { prospect: byId, how: "by id" };
+
+  if (/\d{6,}/.test(v)) {
+    const byPhone = await findByPhone(v).catch(() => null);
+    if (byPhone) return { prospect: byPhone, how: `PHONE#${normalisePhone(v)}` };
+  }
+
+  const byIg = await findByInstagram(v).catch(() => null);
+  if (byIg) return { prospect: byIg, how: `IG#${normaliseInstagram(v)}` };
+
+  // Name search last: it is the only one that has to read a tray.
+  const needle = v.toLowerCase();
+  for (const status of ["new", "open", "won", "lost"] as const) {
+    const hit = (await listProspects(status, 500)).find((p) =>
+      (p.businessName ?? "").toLowerCase().includes(needle),
+    );
+    if (hit) return { prospect: hit, how: `name match in ${status}` };
+  }
+  return { prospect: null, how: "not found" };
+}
+
 export function createApp() {
   const app = express();
   app.use(express.json());
@@ -552,11 +588,18 @@ export function createApp() {
         }
         case "history": {
           if (!value) return res.json({ using: "—", rows: [] });
-          const prospect = await getProspect(value);
-          const events = await listEvents(value, limit);
+          // Accept whatever the operator actually knows. Requiring the
+          // generated id meant running another query, copying it out and
+          // pasting it back — nobody does that twice.
+          const found = await resolveProspect(value);
+          if (!found.prospect) {
+            return res.json({ using: `no prospect matching "${value}"`, rows: [] });
+          }
+          const id = found.prospect.prospectId;
+          const events = await listEvents(id, limit);
           return res.json({
-            using: `all rows where pk = P#${value}`,
-            rows: [...(prospect ? [prospect] : []), ...events],
+            using: `${found.how} → all rows where pk = P#${id}`,
+            rows: [found.prospect, ...events],
           });
         }
         case "tray": {
