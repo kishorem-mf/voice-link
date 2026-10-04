@@ -67,6 +67,8 @@ export function Database() {
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   // The selected prospect's calls, so a history lookup never needs an id typed.
   const [history, setHistory] = useState<Record<string, unknown>[] | null>(null);
+  /** The prospect a row belongs to — shown even when a call row was clicked. */
+  const [owner, setOwner] = useState<Record<string, unknown> | null>(null);
   const [schemaOpen, setSchemaOpen] = useState(false);
   const [table, setTable] = useState<TableShape | null>(null);
   const [busy, setBusy] = useState(false);
@@ -105,9 +107,14 @@ export function Database() {
   async function openRow(r: Record<string, unknown>) {
     setDetail(r);
     setHistory(null);
-    if (r.sk !== "PROFILE" || !r.prospectId) return;
+    setOwner(null);
+    // Works from either end: a prospect row, or a call row that only knows
+    // which prospect it belongs to.
+    const id = r.prospectId ?? (String(r.pk ?? "").startsWith("P#") ? String(r.pk).slice(2) : null);
+    if (!id) return;
     try {
-      const h = await api.crmQuery("history", String(r.prospectId), 50);
+      const h = await api.crmQuery("history", String(id), 50);
+      setOwner((h.rows.find((x) => x.sk === "PROFILE") ?? null) as Record<string, unknown> | null);
       setHistory(h.rows.filter((x) => String(x.sk ?? "").startsWith("EVT#")));
     } catch {
       setHistory([]);
@@ -301,7 +308,7 @@ export function Database() {
       {detail && (
         <Fragment>
           <div
-            onClick={() => { setDetail(null); setHistory(null); }}
+            onClick={() => { setDetail(null); setHistory(null); setOwner(null); }}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 40 }}
           />
           <aside
@@ -312,15 +319,25 @@ export function Database() {
             }}
           >
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <b>{String(detail.businessName ?? detail.sk ?? "Row")}</b>
+              <b>
+                {String(detail.businessName ?? owner?.businessName ?? detail.sk ?? "Row")}
+              </b>
               <button
-                onClick={() => { setDetail(null); setHistory(null); }}
+                onClick={() => { setDetail(null); setHistory(null); setOwner(null); }}
                 style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 18 }}
               >
                 ✕
               </button>
             </div>
-            {detail.sk === "PROFILE" && (
+            {owner && detail.sk !== "PROFILE" && (
+              <div className="hint" style={{ marginTop: 4 }}>
+                {owner.phone ? <>☎ <code>{String(owner.phone)}</code> · </> : null}
+                {owner.instagramUrl ? <>{String(owner.instagramUrl).replace(/^https?:\/\/(www\.)?instagram\.com\//, "@").replace(/\/$/, "")} · </> : null}
+                {owner.city ? String(owner.city) : null}
+              </div>
+            )}
+
+            {(detail.sk === "PROFILE" || owner) && (
               <div style={{ marginTop: 14 }}>
                 <div className="lbl">
                   Call history

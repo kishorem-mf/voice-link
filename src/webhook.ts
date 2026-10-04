@@ -619,9 +619,21 @@ export function createApp() {
           });
         case "activity": {
           const days = Number(value || 7) || 7;
+          const events = await recentActivity(
+            new Date(Date.now() - days * 86400000).toISOString(),
+            limit,
+          );
+          // A call log that cannot say who was called is not a call log. Event
+          // rows only carry prospectId, so the business is attached here —
+          // one lookup per distinct prospect, not per event.
+          const names = new Map<string, { businessName?: string; phone?: string }>();
+          for (const id of new Set(events.map((e) => e.prospectId))) {
+            const p = await getProspect(id).catch(() => null);
+            if (p) names.set(id, { businessName: p.businessName, phone: p.phone });
+          }
           return res.json({
             using: `activity-index, last ${days} day(s)`,
-            rows: await recentActivity(new Date(Date.now() - days * 86400000).toISOString(), limit),
+            rows: events.map((e) => ({ ...names.get(e.prospectId), ...e })),
           });
         }
         case "pipeline":
