@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { age, exact, dueAge } from "../age";
+import { handleOf, profileUrl } from "../instagram";
 
 /**
  * One prospect: who they are, every call so far, and the form for logging the
@@ -128,9 +129,8 @@ export function ProspectPanel({
   if (!prospect) return <div className="panel spinner">Loading…</div>;
 
   const due = dueAge(prospect.followUpDue);
-  const handle = prospect.instagramUrl
-    ? String(prospect.instagramUrl).replace(/^https?:\/\/(www\.)?instagram\.com\//, "@").replace(/\/$/, "")
-    : null;
+  const handle = handleOf(prospect.instagramUrl);
+  const igUrl = profileUrl(prospect.instagramUrl);
 
   return (
     <div className="panel">
@@ -140,7 +140,14 @@ export function ProspectPanel({
           <div className="hint" style={{ marginTop: 0 }}>
             {prospect.phone ? <code>{prospect.phone}</code> : "no phone number yet"}
             {prospect.email && <> · {prospect.email}</>}
-            {handle && <> · {handle}</>}
+            {handle && igUrl && (
+              <>
+                {" · "}
+                <a href={igUrl} target="_blank" rel="noreferrer" title={igUrl}>
+                  {handle}
+                </a>
+              </>
+            )}
             {prospect.city && <> · {prospect.city}</>}
             {typeof prospect.followers === "number" && (
               <> · {prospect.followers.toLocaleString("en-IN")} followers</>

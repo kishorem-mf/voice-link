@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { age, exact, dueAge } from "../age";
+import { handleOf, profileUrl } from "../instagram";
 import { ProspectPanel } from "./ProspectPanel";
 
 /**
@@ -230,11 +231,18 @@ export function Prospects() {
                 >
                   <td>
                     <div>{p.businessName}</div>
-                    {p.instagramUrl && (
+                    {handleOf(p.instagramUrl) && (
                       <div className="hint" style={{ marginTop: 2 }}>
-                        {String(p.instagramUrl)
-                          .replace(/^https?:\/\/(www\.)?instagram\.com\//, "@")
-                          .replace(/\/$/, "")}
+                        <a
+                          href={profileUrl(p.instagramUrl)!}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={profileUrl(p.instagramUrl)!}
+                          // The row opens the prospect; the link must not.
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {handleOf(p.instagramUrl)}
+                        </a>
                       </div>
                     )}
                   </td>
