@@ -139,6 +139,7 @@ export function ProspectPanel({
           <h2 style={{ marginBottom: 4 }}>{prospect.businessName}</h2>
           <div className="hint" style={{ marginTop: 0 }}>
             {prospect.phone ? <code>{prospect.phone}</code> : "no phone number yet"}
+            {prospect.email && <> · {prospect.email}</>}
             {handle && <> · {handle}</>}
             {prospect.city && <> · {prospect.city}</>}
             {typeof prospect.followers === "number" && (

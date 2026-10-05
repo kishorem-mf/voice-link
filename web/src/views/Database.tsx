@@ -64,8 +64,8 @@ const HEADINGS: Record<string, string> = {
  * ran, so the columns follow it.
  */
 const COLUMNS_BY_QUERY: Record<string, string[]> = {
-  tray: ["businessName", "score", "followers", "phone", "city"],
-  due: ["businessName", "followUpDue", "lastContactedAt", "phone", "city"],
+  tray: ["businessName", "score", "followers", "phone", "email", "city"],
+  due: ["businessName", "followUpDue", "lastContactedAt", "phone", "email"],
   activity: ["businessName", "at", "by", "outcome", "notes"],
   history: ["sk", "at", "by", "outcome", "notes"],
   by_phone: ["businessName", "score", "phone", "openedAt", "lastContactedAt", "status"],
@@ -75,7 +75,7 @@ const COLUMNS_BY_QUERY: Record<string, string[]> = {
 
 /** The live/won/lost trays want the pipeline shape, not the calling queue. */
 const TRAY_PIPELINE_COLUMNS = [
-  "businessName", "openedAt", "lastContactedAt", "followUpDue", "phone", "city",
+  "businessName", "openedAt", "lastContactedAt", "followUpDue", "phone", "email",
 ];
 
 /** All rows stays wide — it is the raw view and should look like one. */
@@ -94,7 +94,7 @@ function columnsFor(rows: Record<string, unknown>[], q: string, trayValue: strin
   }
 
   const preferred = [
-    "pk", "sk", "businessName", "score", "followers", "phone", "city",
+    "pk", "sk", "businessName", "score", "followers", "phone", "email", "city",
     "status", "openedAt", "lastContactedAt", "followUpDue", "at", "by",
     "outcome", "notes", "prospectId",
   ];

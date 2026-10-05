@@ -95,16 +95,20 @@ export function Prospects() {
   // is displayed with its country code but often typed without — so both sides
   // are reduced to their bare form before comparing. Searching for what is on
   // screen has to work.
-  const bare = (v: string) =>
-    v
-      .toLowerCase()
+  const bare = (v: string) => {
+    const lower = v.toLowerCase().trim();
+    // An email keeps its shape: stripping @ and punctuation would make
+    // "info@sowmyaphotography.com" unfindable by the text on screen.
+    if (/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(lower)) return lower;
+    return lower
       .replace(/^https?:\/\/(www\.)?instagram\.com\//, "")
       .replace(/[@\s/+()-]/g, "");
+  };
 
   const needle = bare(search.trim());
   const shown = needle
     ? (rows ?? []).filter((r) => {
-        const hay = [r.businessName, r.phone, r.instagramUrl, r.city]
+        const hay = [r.businessName, r.phone, r.email, r.instagramUrl, r.city]
           .filter(Boolean)
           .map((v: any) => bare(String(v)))
           .join(" ");
@@ -204,7 +208,7 @@ export function Prospects() {
                   <th>business</th>
                   <th style={{ textAlign: "right" }}>score</th>
                   <th style={{ textAlign: "right" }}>followers</th>
-                  <th>phone</th>
+                  <th>contact</th>
                   <th>city</th>
                 </tr>
               ) : (
@@ -213,7 +217,7 @@ export function Prospects() {
                   <th>first contact</th>
                   <th>last contact</th>
                   <th>due</th>
-                  <th>phone</th>
+                  <th>contact</th>
                 </tr>
               )}
             </thead>
@@ -243,11 +247,18 @@ export function Prospects() {
                       <td data-label="followers" style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {typeof p.followers === "number" ? p.followers.toLocaleString("en-IN") : "—"}
                       </td>
-                      <td data-label="phone">
+                      <td data-label="contact">
                         {p.phone ? (
                           <code>{p.phone}</code>
+                        ) : p.email ? (
+                          // An email-only lead can still be reached, just not
+                          // by Sara — worth showing rather than "no number".
+                          <span className="hint">{p.email}</span>
                         ) : (
-                          <span className="hint">no number</span>
+                          <span className="hint">no contact</span>
+                        )}
+                        {p.phone && p.email && (
+                          <div className="hint" style={{ marginTop: 2 }}>{p.email}</div>
                         )}
                       </td>
                       <td data-label="city">{p.city ?? "—"}</td>
@@ -275,7 +286,9 @@ export function Prospects() {
                           );
                         })()}
                       </td>
-                      <td data-label="phone">{p.phone ? <code>{p.phone}</code> : <span className="hint">—</span>}</td>
+                      <td data-label="contact">
+                        {p.phone ? <code>{p.phone}</code> : p.email ? <span className="hint">{p.email}</span> : <span className="hint">—</span>}
+                      </td>
                     </>
                   )}
                 </tr>

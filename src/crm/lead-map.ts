@@ -26,6 +26,8 @@ export interface MappedLead {
   businessModel: BusinessModel;
   score: number;
   tier: "phone" | "email" | "none";
+  /** True when the phone was recovered from the bio rather than the Contact column. */
+  contactFromBio?: boolean;
   /** Contact text that was neither a usable phone nor an email. */
   droppedContact?: string;
 }
@@ -80,6 +82,32 @@ export function splitContact(raw: string): { phone?: string; email?: string; dro
   return email ? { email } : { dropped: text };
 }
 
+/**
+ * Pull a phone or email out of a bio.
+ *
+ * Businesses often put their contact in the bio rather than the contact field
+ * — "DM booking 7019592008", "Enquiry: 9110708256". Anything found here is a
+ * fallback only: a value in the Contact column is the one the scraper was
+ * confident about, so it always wins.
+ */
+export function fromBio(bio?: string): { phone?: string; email?: string } {
+  const text = (bio ?? "").trim();
+  if (!text) return {};
+
+  const email = text.match(EMAIL)?.[0]?.toLowerCase();
+
+  // Indian mobiles only, and only when they stand apart from other digits —
+  // a bio is full of numbers that are not phone numbers (prices, years,
+  // follower counts, "2024 weddings shot").
+  const phone = text
+    .replace(EMAIL, " ")
+    .match(/(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?!\d)/g)
+    ?.map((m) => asPhone(m))
+    .find(Boolean);
+
+  return { ...(phone ? { phone } : {}), ...(email ? { email } : {}) };
+}
+
 /** "77,194", "77.2K", "1.4M" and plain numbers alike. */
 export function parseFollowers(raw: string): number | undefined {
   const m = raw.replace(/,/g, "").trim().match(/^(\d+(?:\.\d+)?)\s*([kKmM])?/);
@@ -123,20 +151,31 @@ export function mapLead(row: LeadRow): MappedLead | null {
   if (!businessName) return null;
 
   const contact = splitContact(field(row, "Contact"));
+  const bio = field(row, "Bio") || undefined;
+
+  // The Contact column is what the scraper was confident about, so it wins.
+  // The bio is a fallback for businesses that put "DM booking 7019592008"
+  // there instead — which turns an uncontactable lead into a callable one.
+  const inBio = fromBio(bio);
+  const phone = contact.phone ?? inBio.phone;
+  const email = contact.email ?? inBio.email;
+
   const category = field(row, "Category") || undefined;
   const { model, businessType } = classify(category ?? "");
   const followers = parseFollowers(field(row, "Followers"));
-  const s = scoreLead({ followers, phone: contact.phone, email: contact.email, model });
+  const s = scoreLead({ followers, phone, email, model });
 
   return {
     businessName,
     instagramUrl,
-    phone: contact.phone,
-    email: contact.email,
+    phone,
+    email,
+    /** Where the contact came from, since a bio match is a weaker signal. */
+    contactFromBio: !contact.phone && Boolean(inBio.phone),
     followers,
     city: field(row, "City") || undefined,
     category,
-    bio: field(row, "Bio") || undefined,
+    bio,
     businessType,
     businessModel: model,
     score: s.score,

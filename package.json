@@ -27,6 +27,7 @@
     "crm:seed": "tsx src/crm/cli.ts seed",
     "crm:list": "tsx src/crm/cli.ts list",
     "crm:backfill": "tsx src/crm/backfill-shards.ts",
+    "crm:backfill-bio": "tsx src/crm/backfill-bio.ts",
     "crm:import": "tsx src/crm/import.ts",
     "crm:unimport": "tsx src/crm/unimport.ts",
     "notify:test": "tsx src/notify/telegram.ts",
