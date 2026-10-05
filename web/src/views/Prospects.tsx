@@ -30,6 +30,30 @@ export function Prospects() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newInstagram, setNewInstagram] = useState("");
+  const [addMsg, setAddMsg] = useState<string | null>(null);
+
+  async function addProspect() {
+    if (!newName.trim()) return;
+    setAddMsg(null);
+    try {
+      // Straight into the panel: someone who just rang you is being spoken to
+      // now, and the next thing you want is the log form, not a list.
+      const p = await api.crmAddProspect({
+        businessName: newName.trim(),
+        phone: newPhone.trim() || undefined,
+        instagramUrl: newInstagram.trim() || undefined,
+      });
+      setNewName(""); setNewPhone(""); setNewInstagram(""); setAdding(false);
+      setOpenId(p.prospectId);
+    } catch (e) {
+      setAddMsg(`❌ ${(e as Error).message}`);
+    }
+  }
 
   function load(v: View) {
     setRows(null);
@@ -65,6 +89,29 @@ export function Prospects() {
 
   const callable = (rows ?? []).filter((r) => r.phone).length;
 
+  // Filters the loaded view rather than querying — the trays are small enough
+  // that a round trip per keystroke would be slower, not faster.
+  // The handle is displayed as "@name" but stored as a full URL, and a phone
+  // is displayed with its country code but often typed without — so both sides
+  // are reduced to their bare form before comparing. Searching for what is on
+  // screen has to work.
+  const bare = (v: string) =>
+    v
+      .toLowerCase()
+      .replace(/^https?:\/\/(www\.)?instagram\.com\//, "")
+      .replace(/[@\s/+()-]/g, "");
+
+  const needle = bare(search.trim());
+  const shown = needle
+    ? (rows ?? []).filter((r) => {
+        const hay = [r.businessName, r.phone, r.instagramUrl, r.city]
+          .filter(Boolean)
+          .map((v: any) => bare(String(v)))
+          .join(" ");
+        return hay.includes(needle);
+      })
+    : rows ?? [];
+
   return (
     <div className="panel">
       <div className="row" style={{ gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
@@ -82,7 +129,56 @@ export function Prospects() {
         ))}
       </div>
 
-      {view === "new" && rows && (
+      <div className="row" style={{ marginBottom: 12, flexWrap: "wrap" }}>
+        <input
+          placeholder="Search name, phone or handle…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ flex: "1 1 220px", minWidth: 180 }}
+        />
+        <button className="primary" onClick={() => setAdding((a) => !a)}>
+          {adding ? "Cancel" : "+ Add"}
+        </button>
+      </div>
+
+      {adding && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="lbl">New prospect</div>
+          <div className="row" style={{ marginTop: 8, flexWrap: "wrap" }}>
+            <input
+              placeholder="Business name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addProspect()}
+              autoFocus
+              style={{ minWidth: 190 }}
+            />
+            <input
+              placeholder="Phone (optional)"
+              value={newPhone}
+              onChange={(e) => setNewPhone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addProspect()}
+              style={{ minWidth: 150 }}
+            />
+            <input
+              placeholder="@instagram (optional)"
+              value={newInstagram}
+              onChange={(e) => setNewInstagram(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addProspect()}
+              style={{ minWidth: 150 }}
+            />
+            <button className="primary" onClick={addProspect} disabled={!newName.trim()}>
+              Add &amp; open
+            </button>
+          </div>
+          {addMsg && <div className="hint" style={{ color: "var(--bad)" }}>{addMsg}</div>}
+          <div className="hint">
+            Only the name is required — a caller you have no other details for still belongs here.
+          </div>
+        </div>
+      )}
+
+      {view === "new" && rows && !needle && (
         <div className="hint" style={{ marginTop: 0, marginBottom: 10 }}>
           Best first. {callable} of {rows.length} have a phone number — the rest need
           one before they can be called.
@@ -91,14 +187,16 @@ export function Prospects() {
 
       {!rows && <div className="spinner">Loading…</div>}
 
-      {rows && rows.length === 0 && (
+      {rows && shown.length === 0 && (
         <div className="hint" style={{ padding: "20px 0" }}>
-          Nothing in {VIEWS.find((v) => v.id === view)!.label.toLowerCase()}.
+          {needle
+            ? `Nothing matching “${search.trim()}” in ${VIEWS.find((v) => v.id === view)!.label.toLowerCase()}.`
+            : `Nothing in ${VIEWS.find((v) => v.id === view)!.label.toLowerCase()}.`}
         </div>
       )}
 
-      {rows && rows.length > 0 && (
-        <div className="table-wrap">
+      {rows && shown.length > 0 && (
+        <div className="table-wrap prospect-list">
           <table>
             <thead>
               {view === "new" ? (
@@ -120,7 +218,7 @@ export function Prospects() {
               )}
             </thead>
             <tbody>
-              {rows.map((p) => (
+              {shown.map((p) => (
                 <tr
                   key={p.prospectId}
                   onClick={() => setOpenId(p.prospectId)}
@@ -139,32 +237,32 @@ export function Prospects() {
 
                   {view === "new" ? (
                     <>
-                      <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                      <td data-label="score" style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {typeof p.score === "number" ? p.score.toLocaleString("en-IN") : "—"}
                       </td>
-                      <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                      <td data-label="followers" style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {typeof p.followers === "number" ? p.followers.toLocaleString("en-IN") : "—"}
                       </td>
-                      <td>
+                      <td data-label="phone">
                         {p.phone ? (
                           <code>{p.phone}</code>
                         ) : (
                           <span className="hint">no number</span>
                         )}
                       </td>
-                      <td>{p.city ?? "—"}</td>
+                      <td data-label="city">{p.city ?? "—"}</td>
                     </>
                   ) : (
                     <>
-                      <td title={exact(p.openedAt)} style={{ whiteSpace: "nowrap" }}>
+                      <td data-label="first contact" title={exact(p.openedAt)} style={{ whiteSpace: "nowrap" }}>
                         {age(p.openedAt)}
                       </td>
-                      <td title={exact(p.lastContactedAt)} style={{ whiteSpace: "nowrap" }}>
+                      <td data-label="last contact" title={exact(p.lastContactedAt)} style={{ whiteSpace: "nowrap" }}>
                         {/* "never" rather than a dash: a prospect in the live tray
                             who has never been called is worth noticing. */}
                         {p.lastContactedAt ? age(p.lastContactedAt) : <span className="hint">never</span>}
                       </td>
-                      <td title={p.followUpDue ? String(p.followUpDue) : undefined} style={{ whiteSpace: "nowrap" }}>
+                      <td data-label="due" title={p.followUpDue ? String(p.followUpDue) : undefined} style={{ whiteSpace: "nowrap" }}>
                         {(() => {
                           const d = dueAge(p.followUpDue);
                           return (
@@ -177,7 +275,7 @@ export function Prospects() {
                           );
                         })()}
                       </td>
-                      <td>{p.phone ? <code>{p.phone}</code> : <span className="hint">—</span>}</td>
+                      <td data-label="phone">{p.phone ? <code>{p.phone}</code> : <span className="hint">—</span>}</td>
                     </>
                   )}
                 </tr>

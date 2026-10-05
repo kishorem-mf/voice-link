@@ -90,3 +90,51 @@ tr.clickable:hover td { background: var(--panel-2); }
 audio { width: 100%; margin-top: 12px; }
 .spinner { color: var(--muted); font-size: 14px; }
 .back { background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 14px; margin-bottom: 12px; }
+
+/* ---- Prospects on a phone -------------------------------------------------
+   Logging happens standing outside someone's office, not at a desk. A table
+   with five columns is unusable one-handed, so below 720px each row becomes a
+   card: the column heading moves onto the cell as a label, and the business
+   name leads. */
+@media (max-width: 720px) {
+  .prospect-list table,
+  .prospect-list tbody,
+  .prospect-list tr,
+  .prospect-list td {
+    display: block;
+    width: 100%;
+  }
+  .prospect-list thead {
+    display: none;
+  }
+  .prospect-list tr {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: var(--panel-2);
+  }
+  .prospect-list td {
+    border: none;
+    padding: 2px 0;
+    text-align: left !important;
+  }
+  /* The first cell is the business; the rest get their heading inline. */
+  .prospect-list td:not(:first-child)::before {
+    content: attr(data-label) " ";
+    color: var(--muted);
+    font-size: 12px;
+    margin-right: 6px;
+  }
+  .prospect-list td:first-child {
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  /* Tap targets big enough for a thumb. */
+  .prospect-list tr,
+  .panel select,
+  .panel input,
+  .panel button {
+    min-height: 40px;
+  }
+}

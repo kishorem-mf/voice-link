@@ -260,6 +260,14 @@ export async function upsertProspect(
     prospectId: existing?.prospectId ?? input.prospectId ?? newProspectId(),
     businessName: input.businessName || existing?.businessName || "Unknown",
     status: supplied.status ?? existing?.status ?? "open",
+    // A prospect added by hand is usually someone on the phone right now, so
+    // it is created live rather than as a scraped lead. It became live at that
+    // moment — without this, openedAt would never be set for it, because the
+    // new -> open transition never happens.
+    openedAt:
+      supplied.openedAt ??
+      existing?.openedAt ??
+      ((supplied.status ?? existing?.status ?? "open") === "open" ? now : undefined),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -438,7 +446,7 @@ export async function addEvent(
   // import, so a prospect scraped in September and first called today would
   // read as a month old. The transition happens once and cannot be
   // reconstructed afterwards, so it is recorded as it happens.
-  if (status === "open" && !before?.openedAt) {
+  if ((status === "open" || (!status && before?.status === "open")) && !before?.openedAt) {
     sets.push("openedAt = :oa");
     values[":oa"] = at;
   }

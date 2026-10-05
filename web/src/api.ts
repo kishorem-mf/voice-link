@@ -166,6 +166,18 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   config: () => fetch("/api/config").then(json<AppConfig>),
+  crmAddProspect: (p: {
+    businessName: string;
+    phone?: string;
+    instagramUrl?: string;
+    city?: string;
+    businessType?: string;
+  }) =>
+    fetch("/api/crm/prospects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p),
+    }).then(json<Record<string, any>>),
   crmProspect: (id: string) =>
     fetch(`/api/crm/prospects/${id}`).then(
       json<{ prospect: Record<string, any>; events: Record<string, any>[] }>,
