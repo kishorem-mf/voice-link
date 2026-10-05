@@ -6,14 +6,16 @@ import { CallLogs } from "./views/CallLogs";
 import { CompletedCalls } from "./views/CompletedCalls";
 import { Settings } from "./views/Settings";
 import { Database } from "./views/Database";
+import { Prospects } from "./views/Prospects";
 
-type Tab = "dashboard" | "call" | "logs" | "completed" | "database" | "settings";
+type Tab = "dashboard" | "call" | "logs" | "completed" | "prospects" | "database" | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "call", label: "Make a Call" },
   { id: "logs", label: "Call Logs" },
   { id: "completed", label: "Completed Calls" },
+  { id: "prospects", label: "Prospects" },
   { id: "database", label: "Database" },
   { id: "settings", label: "Settings" },
 ];
@@ -61,6 +63,7 @@ export function App() {
       {tab === "call" && <MakeCall />}
       {tab === "logs" && <CallLogs />}
       {tab === "completed" && <CompletedCalls />}
+      {tab === "prospects" && <Prospects />}
       {tab === "database" && <Database />}
       {tab === "settings" && <Settings onProfileChanged={refetchConfig} />}
     </div>

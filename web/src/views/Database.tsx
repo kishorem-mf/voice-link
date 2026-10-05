@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { api, type TableShape } from "../api";
+import { age, exact, dueAge } from "../age";
 
 /**
  * A window onto the raw CRM table — one data grid with a toolbar, the shape a
@@ -37,42 +38,8 @@ function rowType(r: Record<string, unknown>) {
   return { label: "row", tone: "var(--muted)" };
 }
 
-/**
- * How long ago, as an age rather than a date.
- *
- * Ages answer the question actually being asked — is this going stale? — at a
- * glance, where a date has to be subtracted from today first. The exact
- * timestamp is still available on hover and in the drawer.
- */
-function age(iso: unknown): string {
-  if (iso === undefined || iso === null || iso === "") return "—";
-  const t = Date.parse(String(iso));
-  if (Number.isNaN(t)) return "—";
-  const days = Math.floor((Date.now() - t) / 86400000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days}d`;
-  if (days < 365) return `${Math.round(days / 30)}mo`;
-  return `${Math.round(days / 365)}y`;
-}
 
-/** Full timestamp for the hover, in local time. */
-function exact(iso: unknown): string | undefined {
-  if (!iso) return undefined;
-  const t = Date.parse(String(iso));
-  return Number.isNaN(t) ? undefined : new Date(t).toLocaleString();
-}
 
-/** A follow-up date read as an age, so it sits in the same units as the rest. */
-function dueAge(iso: unknown): { text: string; overdue: boolean } {
-  if (!iso) return { text: "—", overdue: false };
-  const t = Date.parse(`${String(iso)}T00:00:00`);
-  if (Number.isNaN(t)) return { text: String(iso), overdue: false };
-  const days = Math.floor((Date.now() - t) / 86400000);
-  if (days > 0) return { text: `${days}d ago`, overdue: true };
-  if (days === 0) return { text: "today", overdue: true };
-  return { text: `in ${Math.abs(days)}d`, overdue: false };
-}
 
 /** Columns are rendered as an age rather than their raw value. */
 const AGE_COLUMNS = new Set(["openedAt", "lastContactedAt", "at", "createdAt"]);

@@ -166,6 +166,7 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   config: () => fetch("/api/config").then(json<AppConfig>),
+  crmPipeline: () => fetch("/api/crm/pipeline").then(json<Record<string, number>>),
   crmTable: (limit = 20) => fetch(`/api/crm/table?limit=${limit}`).then(json<TableShape>),
   crmQuery: (q: string, value = "", limit = 50) =>
     fetch(`/api/crm/query?q=${q}&value=${encodeURIComponent(value)}&limit=${limit}`).then(
