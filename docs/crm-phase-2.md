@@ -1,146 +1,186 @@
 # CRM Phase 2 — the Prospects tab
 
-Everything built so far is plumbing: a DynamoDB table, an API, and a Database
-tab for inspecting it. None of it is usable after a phone call. Phase 2 is the
-screen you actually work in.
+The screen the CRM is actually used through. Everything built so far — the
+table, the API, the importer, the Database tab — is plumbing that nobody would
+open after a phone call.
 
-**The premise that shapes every decision here:** most first calls are made by a
-person, from their own phone, outside this system. Sara handles follow-ups. So
-manual entry is the primary path, and it has to be faster than the excuse not
-to do it.
+Built in three parts, each usable before the next exists.
 
 ---
 
-## A Tuesday morning with it
+## The premise that shapes every decision
 
-### 9:10 — open the Prospects tab
+**First calls are made by a person, from their own phone, outside this system.
+Sara handles the follow-ups.**
+
+So there are two writers to every prospect's history:
+
+| Writer | When | Recorded as |
+|---|---|---|
+| **You** | after a call you made yourself | `by: "me"` |
+| **Sara** | automatically, when a VoiceLink call ends | `by: "sara"` |
+
+Both go through the same `addEvent`, so the rows are identical in shape and
+differ only in that field. A prospect's timeline should read *you* called on
+the 3rd, *Sara* confirmed on the 10th, *you* closed on the 12th — showing where
+the human contact went, rather than blurring your conversations into hers.
+
+Manual entry is therefore the **primary** path, not a fallback. A prospect who
+never touches VoiceLink has to work perfectly.
+
+---
+
+## Part 2a — the list (~30 min)
+
+A **Prospects** tab with two views, toggled:
 
 ```
-⚠ OVERDUE   Bella Weddings        due 22 Sep    last called 15 Sep
-● TODAY     Dreamframe Studios    due 27 Sep    demo booked
-            Glow Studio Salon     no follow-up  from Instagram, no phone yet
-            Sunrise Caterers      due 3 Oct     interested
+TO CALL (54)                           ← scraped leads, best first
+  Thiru Wedding Photographer    1073    77,194   Hyderabad
+  FocuzStudios                  1071    69,249   Bangalore
 
-Live 4   ·   Won 1   ·   Lost 2
+IN PROGRESS (2)                        ← spoken to, most urgent first
+  Dreamframe Studios   first 20d   last 7d   due 13d ago ⚠
+  Glow Studio Salon    first  —    never     no follow-up
 ```
 
-Sorted by follow-up date, soonest first. Bella is red because you promised the
-22nd and didn't call. That is your morning, in order, without deciding
-anything.
+- Columns follow the view, as in the Database tab: the calling queue shows
+  score and reach, the pipeline shows ages.
+- Overdue in red; ages with the exact date on hover.
+- Counts from `GET /api/crm/pipeline`.
 
-Prospects with no follow-up sort last rather than vanishing — Glow Studio came
-from an Instagram scrape and has no phone number yet, which is a normal state,
-not an error.
+Read-only. Already usable — this is your calling queue with a notebook.
 
-### 9:12 — call Bella Weddings
+**Reuses:** `GET /api/crm/prospects?status=`, `/pipeline`, and the `age()` /
+`dueAge()` helpers from the Database tab.
 
-Tapping the name opens their page: details at the top, every call beneath in
-date order.
+**Done when:** 54 ranked leads appear, and Dreamframe shows 13 days overdue.
+
+---
+
+## Part 2b — the prospect page and logging (~50 min)
+
+The part that decides whether any of this gets used.
+
+### The page
 
 ```
-15 Sep   you    Interested       "Wants Feb dates, budget unclear"
- 8 Sep   Sara   No answer
- 8 Sep   you    Call back later  "Shooting, asked to try Monday"
+Dreamframe Studios                            [ Call myself ] [ Sara calls ]
++91 78421 60862 · @dreamframe · Bangalore
+first contact 20d · last contact 7d · due 13d ago
+
+History
+  27 Sep   you    Demo booked     "Tuesday 11am"
+  13 Sep   you    Interested      "Shoots ~20 weddings a year"
+  13 Sep   Sara   No answer
 ```
 
-Each line says who made the call. That distinction is the point of the `by`
-field: the timeline should show where the human touch went, not blur your
-conversations into Sara's automated ones.
+Details editable in place. Every line says who made the call.
 
-A **Call** button dials through the active client's number.
-
-### 9:18 — hang up and log it
-
-The quick form is already on the page, not behind a menu:
+### The log form — always visible, never behind a menu
 
 ```
 What happened   [ Demo booked ▾ ]
 Call back       [ In 3 days  ▾ ]
-Notes           Booked Thursday 4pm. Wants the drone package.
-                                                    [ Save ]
+When            [ just now   ▾ ]      ← see below
+Notes           ______________________
+                                 [ Save ]
 ```
 
-Bella turns green, moves down the list, and reappears on Friday.
+**Why "when" exists.** You will usually log a call some minutes after it ends —
+walking back to the car, between meetings. Defaulting silently to *now* is
+mostly right, but the field has to be there, because `lastContactedAt` feeds
+the "last contact 7d" age the whole pipeline view is read by. A wrong timestamp
+quietly corrupts the number you act on. Options: *just now*, *earlier today*,
+*yesterday*, *pick a date*.
 
-**This step decides whether the whole thing works.** If logging a call takes
-longer than about ten seconds, it gets postponed and then never happens. Hence:
-form on the page, dropdowns not free text, and a layout that works one-handed
-on a phone — because you will be doing this outside a client's office, not back
-at a desk.
+### The two call buttons
 
-### 9:30 — an unknown number rings
+- **Call myself** — reveals the number, large, tap-to-dial on a phone. The app
+  is not placing the call; you are. Logging afterwards is manual.
+- **Sara calls them** — places the call through VoiceLink for the active
+  client, using the existing `placeCall()`.
 
-Type it into the search box. Nothing found, so tap **Add**, enter the business
-name, log the call. They exist in the system before the kettle boils.
+**This button is the missing link in the current build.** Sara answers inbound
+and you can dial manually from "Make a Call", but nothing says *ring this
+prospect*. No new plumbing is needed: `placeCall()` exists, and the watcher
+already matches a finished call back to a prospect **by phone number** through
+the `PHONE#…` pointer row. The phone number is the link.
 
-### Friday — "what did I do this week?"
+### What saving does
 
-```
-Tue 9:18   Bella Weddings      Demo booked     (you)
-Tue 9:31   Kiran Photography   Interested      (you)
-Wed 6:15   Sunrise Caterers    No answer       (Sara)
-Thu 16:00  Bella Weddings      Closed won      (you)
-```
+One `POST /api/crm/prospects/:id/events`, which already:
 
-Your calls and Sara's side by side, across every prospect.
+- appends the event with `by: "me"`
+- moves `new → open` on first contact, stamping `openedAt`
+- sets `followUpDue` from the dropdown, stored as a real date
+- closes the prospect when the outcome is marked `closes` — a won customer
+  leaves the daily list without anyone remembering to change a status
 
-Bella has already left the live list, because "Closed won" closes the prospect
-automatically. Nobody has to remember to change a status — relying on that is
-how CRMs rot.
+**Done when:** logging a call on a real lead moves it out of *to call*, and it
+reappears in *in progress* on the right day.
 
 ---
 
-## What gets built
+## Part 2c — the edges (~20 min)
 
-| Piece | Notes |
-|---|---|
-| **Prospects list** | Overdue red, today next, rest after. Tray counts at the top. |
-| **Search** | Business name, phone, Instagram handle. Filters the loaded tray client-side. |
-| **Prospect page** | Details editable in place, full timeline, Call button. |
-| **Quick log form** | Outcome → follow-up → notes → Save. On the page, not behind a menu. |
-| **Add prospect** | Business name required; phone and Instagram optional. |
-| **Activity view** | "This week", across all prospects. |
-| **Mobile layout** | Single column, large tap targets. |
+- **Search** across business name, phone and Instagram handle. Filters the
+  loaded view client-side; `findByPhone` for an exact number.
+- **Add prospect** — business name required, phone and Instagram optional. For
+  the number that rings you unprompted.
+- **Mobile layout** — single column, large tap targets. You will be logging
+  calls outside someone's office, not at a desk.
 
-### Nothing new is needed underneath
+---
 
-Every query this screen makes already exists and is tested:
+## Phase 3 — Sara writes back (~45 min)
 
-| Screen action | API | How it's answered |
+The second writer, built after 2a–2c have survived a week of real use, so the
+shape of a prospect is settled before anything writes to it automatically.
+
+In `notifyCall()`, after the Telegram alert — so a CRM failure can never cost
+an alert:
+
+1. Match the call's number to a prospect via the phone pointer.
+2. **Insert** a stub prospect if there is no match. An inbound enquiry from a
+   stranger is the most valuable row there is and must not be dropped.
+3. **Append** the event with `by: "sara"`, carrying the recording URL, duration
+   and the tags she already extracts.
+4. **Set the outcome from those tags** — hot lead → *Interested*, no answer →
+   *No answer* — and leave it editable. An unreviewed guess is more useful than
+   an empty row nobody goes back to complete.
+
+---
+
+## What already exists
+
+Nothing new is needed underneath. Every action maps to a tested function:
+
+| Screen action | API | Answered by |
 |---|---|---|
-| Prospects list | `GET /api/crm/prospects?status=open` | `status-index` |
-| Tray counts | `GET /api/crm/pipeline` | `status-index`, counted |
-| Prospect page | `GET /api/crm/prospects/:id` | all rows under `P#<id>` |
-| Save a call | `POST /api/crm/prospects/:id/events` | writes event + updates profile |
-| Add prospect | `POST /api/crm/prospects` | writes profile + pointer rows |
-| Search by number | `GET /api/crm/lookup?phone=` | direct read of `PHONE#…` |
-| This week | `GET /api/crm/activity?days=7` | `activity-index` |
-
-Phase 2 is the interface only. Roughly **90 minutes**.
-
----
-
-## Decisions already made, worth not relitigating
-
-**Follow-ups store a real date, not the label.** "Next week" cannot be sorted
-or queried. The dropdown is only how the date gets chosen.
-
-**Outcomes marked `closes` move the prospect's tray themselves.** Won and lost
-prospects leave the daily list without human intervention.
-
-**Timestamps are stored UTC and must be rendered in local time.** A call logged
-at 01:53 IST stores as the previous day in UTC; showing that raw would be
-confusing and wrong.
-
-**Dates are computed from local time, not `toISOString()`.** That bug already
-bit once: between midnight and 05:30 IST, follow-ups landed a day early.
+| To-call list | `GET /prospects?status=new` | `status-index` |
+| In-progress list | `GET /prospects?status=open` | `status-index` |
+| Counts | `GET /pipeline` | `status-index`, counted |
+| Prospect page | `GET /prospects/:id` | all rows under `P#<id>` |
+| Save a call | `POST /prospects/:id/events` | event + profile update |
+| Add prospect | `POST /prospects` | profile + pointers, one transaction |
+| Search by number | `GET /lookup?phone=` | `PHONE#…` direct read |
+| Sara calls them | `POST /api/call` | existing `placeCall()` |
 
 ---
 
-## Phase 3, for context
+## Decisions already settled
 
-Sara writes her own calls into the same timeline (`by: "sara"`), an unknown
-caller auto-creates a stub prospect, and the outcome is inferred from the tags
-she already extracts. Small — roughly 45 minutes — but it should come after
-Phase 2 has survived a week of real use, so the shape of a prospect is settled
-before anything writes to it automatically.
+- **Follow-ups store a real date**, not the dropdown label. "Next week" cannot
+  be sorted or chased.
+- **Outcomes marked `closes` move the prospect's tray themselves.**
+- **Timestamps are stored UTC, rendered local.** A call logged at 01:53 IST
+  stores as the previous day in UTC; showing that raw is wrong and confusing.
+- **Ages, not dates**, with the exact moment on hover — `20d`, `7d`, `never`.
+
+## The one thing that decides whether this works
+
+The log form has to be fast. If recording a call takes longer than about ten
+seconds, it gets postponed and then never happens, and the CRM quietly dies
+with a month of missing history. Everything else here can be imperfect; that
+cannot.
