@@ -44,6 +44,8 @@ export function ProspectPanel({
 
   const [outcome, setOutcome] = useState("");
   const [followUp, setFollowUp] = useState("");
+  /** Set when "on a date…" is chosen — an exact day beats any bucket. */
+  const [followUpOn, setFollowUpOn] = useState("");
   const [when, setWhen] = useState("now");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -71,6 +73,10 @@ export function ProspectPanel({
       setMsg("❌ Pick what happened first.");
       return;
     }
+    if (followUp === "on_date" && !followUpOn) {
+      setMsg("❌ Pick the date to call back on.");
+      return;
+    }
     setSaving(true);
     setMsg(null);
     try {
@@ -80,12 +86,17 @@ export function ProspectPanel({
         notes: notes.trim() || undefined,
         // Omitted entirely when left blank, so saving a call never silently
         // clears a follow-up that was already set.
-        ...(followUp ? { followUp } : {}),
+        ...(followUp === "on_date" && followUpOn
+          ? { followUpDate: followUpOn }
+          : followUp && followUp !== "on_date"
+            ? { followUp }
+            : {}),
         at: new Date(Date.now() - mins * 60000).toISOString(),
         direction: "outbound",
       });
       setOutcome("");
       setFollowUp("");
+      setFollowUpOn("");
       setNotes("");
       setWhen("now");
       setMsg("Logged.");
@@ -203,7 +214,19 @@ export function ProspectPanel({
             {options.followUps.map((f) => (
               <option key={f.id} value={f.id}>{f.label}</option>
             ))}
+            <option value="on_date">on a date…</option>
           </select>
+
+          {/* The quick picks cover most calls; a named day needs a calendar. */}
+          {followUp === "on_date" && (
+            <input
+              type="date"
+              value={followUpOn}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setFollowUpOn(e.target.value)}
+              autoFocus
+            />
+          )}
           <select value={when} onChange={(e) => setWhen(e.target.value)} style={{ minWidth: 150 }}>
             {WHEN.map((w) => (
               <option key={w.id} value={w.id}>{w.label}</option>

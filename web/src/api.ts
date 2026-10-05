@@ -174,7 +174,15 @@ export const api = {
     fetch("/api/crm/options").then(json<{ outcomes: any[]; followUps: any[] }>),
   crmLogCall: (
     id: string,
-    body: { outcome: string; notes?: string; followUp?: string; at?: string; direction?: string },
+    body: {
+      outcome: string;
+      notes?: string;
+      followUp?: string;
+      /** An exact YYYY-MM-DD, which takes precedence over the quick picks. */
+      followUpDate?: string;
+      at?: string;
+      direction?: string;
+    },
   ) =>
     fetch(`/api/crm/prospects/${id}/events`, {
       method: "POST",
