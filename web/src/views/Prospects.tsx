@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { age, exact, dueAge } from "../age";
+import { ProspectPanel } from "./ProspectPanel";
 
 /**
  * The Prospects tab — the screen the CRM is actually worked through.
@@ -28,6 +29,7 @@ export function Prospects() {
   const [rows, setRows] = useState<Prospect[] | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   function load(v: View) {
     setRows(null);
@@ -42,6 +44,17 @@ export function Prospects() {
   useEffect(() => {
     api.crmPipeline().then(setCounts).catch(() => setCounts({}));
   }, [rows]);
+
+  // One prospect takes over the tab: on a phone there is no room for both,
+  // and the list is only there to get you here.
+  if (openId)
+    return (
+      <ProspectPanel
+        prospectId={openId}
+        onClose={() => { setOpenId(null); load(view); }}
+        onChanged={() => load(view)}
+      />
+    );
 
   if (error)
     return (
@@ -108,7 +121,11 @@ export function Prospects() {
             </thead>
             <tbody>
               {rows.map((p) => (
-                <tr key={p.prospectId}>
+                <tr
+                  key={p.prospectId}
+                  onClick={() => setOpenId(p.prospectId)}
+                  style={{ cursor: "pointer" }}
+                >
                   <td>
                     <div>{p.businessName}</div>
                     {p.instagramUrl && (

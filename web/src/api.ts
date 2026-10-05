@@ -166,6 +166,21 @@ async function json<T>(res: Response): Promise<T> {
 
 export const api = {
   config: () => fetch("/api/config").then(json<AppConfig>),
+  crmProspect: (id: string) =>
+    fetch(`/api/crm/prospects/${id}`).then(
+      json<{ prospect: Record<string, any>; events: Record<string, any>[] }>,
+    ),
+  crmOptions: () =>
+    fetch("/api/crm/options").then(json<{ outcomes: any[]; followUps: any[] }>),
+  crmLogCall: (
+    id: string,
+    body: { outcome: string; notes?: string; followUp?: string; at?: string; direction?: string },
+  ) =>
+    fetch(`/api/crm/prospects/${id}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(json<Record<string, unknown>>),
   crmPipeline: () => fetch("/api/crm/pipeline").then(json<Record<string, number>>),
   crmTable: (limit = 20) => fetch(`/api/crm/table?limit=${limit}`).then(json<TableShape>),
   crmQuery: (q: string, value = "", limit = 50) =>

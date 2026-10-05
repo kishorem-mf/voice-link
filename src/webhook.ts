@@ -531,7 +531,7 @@ export function createApp() {
    */
   app.post("/api/crm/prospects/:id/events", async (req: Request, res: Response) => {
     const id = String(req.params.id);
-    const { by, outcome, notes, direction, followUp } = req.body ?? {};
+    const { by, outcome, notes, direction, followUp, at } = req.body ?? {};
     try {
       if (!(await getProspect(id))) return res.status(404).json({ error: "No such prospect" });
       const event = await addEvent({
@@ -540,6 +540,10 @@ export function createApp() {
         outcome,
         notes,
         direction,
+        // A call is usually logged some minutes after it ends. lastContactedAt
+        // feeds the age the pipeline is read by, so a silently-wrong timestamp
+        // corrupts the number being acted on — the caller may set it.
+        ...(typeof at === "string" && !Number.isNaN(Date.parse(at)) ? { at } : {}),
         ...(followUp === undefined ? {} : { followUpDue: followUpDate(followUp) }),
       });
       res.json(event);
