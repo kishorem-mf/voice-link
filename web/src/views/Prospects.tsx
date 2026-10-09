@@ -25,6 +25,9 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "lost", label: "Lost" },
 ];
 
+/** 0 means every row. */
+const PAGE_SIZES = [25, 50, 100, 0];
+
 export function Prospects() {
   const [view, setView] = useState<View>("new");
   const [rows, setRows] = useState<Prospect[] | null>(null);
@@ -32,6 +35,35 @@ export function Prospects() {
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  /**
+   * How many rows to draw, not how many to fetch.
+   *
+   * The whole tray is always loaded, so search still sees every prospect —
+   * fetching a page instead would hide the rest from search, which is the
+   * bug the server-side pagination fix was for.
+   */
+  const [pageSize, setPageSize] = useState<number>(() => {
+    try {
+      // Read the raw string first: getItem returns null when nothing is
+      // stored, and Number(null) is 0 — which is a real page size here,
+      // meaning "All". That would default a first-time visitor to 173 rows.
+      const raw = localStorage.getItem("prospects.pageSize");
+      if (raw === null) return 50;
+      const v = Number(raw);
+      return PAGE_SIZES.includes(v) ? v : 50;
+    } catch {
+      return 50;
+    }
+  });
+
+  function choosePageSize(n: number) {
+    setPageSize(n);
+    try {
+      localStorage.setItem("prospects.pageSize", String(n));
+    } catch {
+      // Private windows throw on write; the choice just won't be remembered.
+    }
+  }
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
@@ -116,6 +148,12 @@ export function Prospects() {
         return hay.includes(needle);
       })
     : rows ?? [];
+
+  // A search is a request for a specific prospect, so it ignores the page
+  // size — being told "50 of 173" when you searched for one studio is just
+  // the old invisible-rows problem wearing a different hat.
+  const capped = !needle && pageSize > 0 ? shown.slice(0, pageSize) : shown;
+  const hiddenCount = shown.length - capped.length;
 
   return (
     <div className="panel">
@@ -223,7 +261,7 @@ export function Prospects() {
               )}
             </thead>
             <tbody>
-              {shown.map((p) => (
+              {capped.map((p) => (
                 <tr
                   key={p.prospectId}
                   onClick={() => setOpenId(p.prospectId)}
@@ -303,6 +341,45 @@ export function Prospects() {
               ))}
             </tbody>
           </table>
+
+          <div
+            className="row"
+            style={{
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div className="hint">
+              {needle
+                ? `${shown.length} ${shown.length === 1 ? "match" : "matches"}`
+                : hiddenCount > 0
+                  ? `Showing ${capped.length} of ${shown.length}`
+                  : `All ${shown.length}`}
+            </div>
+
+            <div className="row" style={{ gap: 6, alignItems: "center" }}>
+              {hiddenCount > 0 && (
+                <button className="tab" onClick={() => choosePageSize(0)}>
+                  Show all {shown.length}
+                </button>
+              )}
+              <span className="hint">Rows</span>
+              <select
+                value={pageSize}
+                onChange={(e) => choosePageSize(Number(e.target.value))}
+                aria-label="Rows per page"
+              >
+                {PAGE_SIZES.map((n) => (
+                  <option key={n} value={n}>
+                    {n === 0 ? "All" : n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       )}
     </div>
