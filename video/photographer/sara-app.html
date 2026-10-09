@@ -1,0 +1,1433 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F4F1EC">
+<title>Sara</title>
+<!-- ════════════════════════════════════════════════════════════════════
+     ✏️  EDIT ONLY THIS BLOCK PER STUDIO.  Everything below it stays the same.
+     Photographer edition — Calls · Dates · Contacts · Activity.
+     Model: a contact has one engagement (the booked job); an engagement
+     collects events (the things that actually happened). See
+     docs/sara-app-customization.md.
+     ════════════════════════════════════════════════════════════════════ -->
+<script>
+  // The things a photographer records against a job. Order = the order they
+  // normally happen, which is also the order of the Record-event picker.
+  const EVENT_TYPES = [
+    { k:"booking",  e:"📝", t:"Booking confirmed" },
+    { k:"payment",  e:"💰", t:"Payment received"  },
+    { k:"shoot",    e:"📷", t:"Photography done"  },
+    { k:"edit",     e:"🎨", t:"Editing started"   },
+    { k:"preview",  e:"🖼️", t:"Preview shared"    },
+    { k:"album",    e:"📖", t:"Album delivered"   },
+    { k:"review",   e:"⭐", t:"Review received"   },
+    { k:"referral", e:"🤝", t:"Referral given"    },
+    { k:"aborted",  e:"🚫", t:"Booking aborted"   },
+    { k:"status",   e:"🔄", t:"Status updated"    }
+  ];
+
+  // The lifecycle, as a photographer actually works it. Category picks the
+  // phase, subcategory the position inside it — two dropdowns cover the
+  // normal case, and the note is there for the stuck ones.
+  //
+  // `side` decides which segment the contact sits in, so a status change
+  // moves it; nothing sets the segment by hand.
+  const PIPELINE = [
+    { k:"enquiry",   t:"Enquiry",         side:"prospect", c:"st-open",
+      subs:["New enquiry","Date available","Date unavailable","Date held","Meeting set","Following up"] },
+    { k:"quoted",    t:"Quoted",          side:"prospect", c:"st-amber",
+      subs:["Quote sent","In negotiation","Awaiting decision","Advance pending"] },
+    { k:"booked",    t:"Booked",          side:"customer", c:"st-brand",
+      subs:["Advance received","Pre-production","Crew assigned","Postponed"] },
+    { k:"shooting",  t:"Shooting",        side:"customer", c:"st-violet",
+      subs:["Upcoming","Partially shot","All events shot"] },
+    { k:"post",      t:"Post-production", side:"customer", c:"st-amber",
+      subs:["Backup done","Culling","Awaiting client selection","Editing","Album design","Awaiting album approval","At printer"] },
+    { k:"delivered", t:"Delivered",       side:"customer", c:"st-brand",
+      subs:["Teaser","Full set","Album","Film"] },
+    { k:"collab",    t:"Collaboration",   side:"collab",   c:"st-violet",
+      subs:["Wedding planner","Decor","Makeup artist","Venue","Caterer","Other vendor"] },
+    { k:"closed",    t:"Closed",          side:"customer", c:"st-deep",
+      subs:["Completed","Review received","Lost — date gone","Lost — budget","Lost — chose another","Lost — went cold","Cancelled after advance"] }
+  ];
+
+  const CFG = {
+    studioName: "Lens & Light Studio",
+
+    // ---- Calls ----
+    shootingNow: "Priya & Arjun · Taj Krishna",
+    totals: { answered: 14, dates: 9, enquiries: 6 },
+
+    // ---- Dates ----
+    month: "December 2026",
+    peakNote: "Peak season",
+    firstDow: 2,
+    daysInMonth: 31,
+    ym: "2026-12",                 // the month the grid renders
+    // Not derivable from any job — this is time you have taken off.
+    blocked: [
+      { d:"2026-12-23", why:"Travel — Goa" },
+      { d:"2026-12-24", why:"Travel — Goa" },
+      { d:"2026-12-28", why:"Family wedding" }
+    ],
+    asks: [
+      { since:2, name:"Priya Nair",   said:"“Are you free on the 14th?”",   v:{t:"FREE · HELD", k:"free"} },
+      { name:"Vikram Menon", said:"“What about the 8th of Dec?”",  v:{t:"BOOKED",      k:"busy"} },
+      { name:"Sneha Rao",    said:"“22nd January, reception only.”", v:{t:"FREE · HELD", k:"free"} },
+      { name:"Rahul Iyer",   said:"“Is the 15th still open?”",     v:{t:"ON HOLD",     k:"hold"} }
+    ],
+
+    // Prospects are worked from the Calls tab; Contacts is for people you
+    // already have a relationship with.
+    segments: [
+      { id:"customer", label:"Customers",      chip:"Customer" },
+      { id:"collab",   label:"Collaborations", chip:"Collab" }
+    ],
+    prospectChip: { id:"prospect", chip:"Prospect" },
+    ownedCount: "386",
+    addedToday: 6,
+
+    // `d` on an event = days ago. The Activity feed filters on it, so a
+    // demo stays correct whenever you record it.
+    people: [
+      { seg:"prospect", d:0, i:"PN", c:"#13A86C", holdDates:["2026-12-14"], cat:"enquiry", sub:"Date held", name:"Priya Nair", num:"+91 98765 4••10", when:"4m",
+        tag:"14 Dec · wedding", out:{t:"Date free · held", k:"book"},
+        facts:[["Date","14 Dec 2026"],["Type","Wedding + reception"],["Venue","Taj Krishna, Hyderabad",1],
+               ["Guests","600"],["Coverage","2 days"],["Budget","₹1.8–2.2L","money"],["Came from","Instagram DM → call"]],
+        said:"“We’re looking at the 14th — both the wedding and the reception. Candid style, and a teaser within a week.”",
+        timeline:[
+          { k:"sara", ago:"4m ago",    what:"Answered, checked 14 Dec — free. Held for 48 hours." },
+          { k:"sara", ago:"4m ago",    what:"Collected venue, guest count, budget range." },
+          { k:"next", due:2, ago:"in 2 days", what:"Follow-up — hold expires, confirm or release." }
+        ] },
+
+      { seg:"prospect", d:0, i:"AK", c:"#C05F3B", cat:"enquiry", sub:"New enquiry", name:"Arjun Kumar", num:"+91 90123 8••42", when:"21m",
+        tag:"Pre-wedding", out:{t:"Enquiry saved", k:"new"},
+        facts:[["Date","Flexible · February"],["Type","Pre-wedding shoot"],["Venue","Outdoor — Araku",1],
+               ["Guests","—"],["Coverage","1 day"],["Budget","₹35–45k","money"],["Came from","Instagram DM → call"]],
+        said:"“Nothing fixed yet, sometime in February. We liked the Araku set on your page.”",
+        timeline:[
+          { k:"sara", ago:"21m ago",   what:"Answered, saved enquiry. No date to check yet." },
+          { k:"next", due:5, ago:"in 5 days", what:"Follow-up — ask if dates have firmed up." }
+        ] },
+
+      { seg:"customer", d:4, i:"MG", c:"#0A7B4C", cat:"closed", sub:"Review received", name:"Meera & Gautam", num:"+91 76540 1••90", when:"4d",
+        tag:"Shot · Jul 2026", out:{t:"Album delivered", k:"book"},
+        engagement:{ dates:["2026-07-22","2026-07-23"], slot:"Full day",
+                     title:"Wedding + sangeet", date:"23 Jul 2026", venue:"Novotel, HICC",
+                     value:"₹2,10,000", paid:"₹2,10,000", balance:"₹0", stage:"Closed" },
+        events:[
+          { k:"referral", d:4,   note:"Sent two couples — Feb and April dates" },
+          { k:"review",   d:14,  note:"5 stars on Google" },
+          { k:"payment",  d:52,  note:"Final balance ₹1,50,000 received" },
+          { k:"album",    d:55,  note:"40-page album handed over in person" },
+          { k:"preview",  d:78,  note:"Teaser of 30 photos shared" },
+          { k:"edit",     d:92,  note:"Editing started — 1,400 frames" },
+          { k:"shoot",    d:110, note:"2 days covered — wedding + sangeet" },
+          { k:"payment",  d:168, note:"Advance ₹60,000 received" },
+          { k:"booking",  d:170, note:"Booked for 23 Nov" }
+        ],
+        facts:[["Shot on","23 Jul 2026"],["Type","Wedding + sangeet"],["Venue","Novotel, HICC",1],
+               ["Coverage","2 days"],["Album","Delivered"],["Referrals","2 couples","money"],["Came from","Planner — Shruti"]],
+        said:"“The album came out beautiful. I’ve already sent your number to two friends.”",
+        timeline:[
+          { k:"you",  ago:"Aug 2026",    what:"Shot the wedding — 2 days, Novotel." },
+          { k:"sara", ago:"2 weeks ago", what:"Called for a review — 5 stars, gave 2 referrals." },
+          { k:"next", due:300, ago:"Jul 2027", what:"Anniversary shoot offer." }
+        ] },
+
+      { seg:"customer", d:5, i:"DS", c:"#C79440", cat:"post", sub:"Editing", since:3, name:"Divya & Sameer", num:"+91 82345 7••45", when:"5d",
+        tag:"Shot · Aug 2026", out:{t:"Album in edit", k:"callback"},
+        engagement:{ dates:["2026-08-11"], slot:"Evening",
+                     title:"Engagement shoot", date:"11 Aug 2026", venue:"Park Hyatt",
+                     value:"₹65,000", paid:"₹25,000", balance:"₹40,000", stage:"In progress" },
+        events:[
+          { k:"edit",    d:2,  note:"Drone shots being added on request" },
+          { k:"preview", d:9,  note:"15 preview images shared on WhatsApp" },
+          { k:"shoot",   d:26, note:"6 hours covered at Park Hyatt" },
+          { k:"payment", d:40, note:"Advance ₹25,000 received" },
+          { k:"booking", d:41, note:"Booked for 11 Dec" }
+        ],
+        facts:[["Shot on","11 Aug 2026"],["Type","Engagement"],["Venue","Park Hyatt",1],
+               ["Coverage","6 hours"],["Album","In edit"],["Balance","₹40,000","money"],["Came from","Direct — Instagram"]],
+        said:"“Can we add the drone shots to the final album?”",
+        timeline:[
+          { k:"you",  ago:"Aug 2026",   what:"Shot the engagement — 6 hours." },
+          { k:"sara", ago:"5 days ago", what:"Called about album status, logged drone request." },
+          { k:"next", due:3, ago:"in 3 days", what:"Album delivery — then ask for the review." }
+        ] },
+
+      { seg:"collab", d:0, i:"SM", c:"#8A7E72", cat:"collab", sub:"Wedding planner", name:"Shruti — Wedding Planner", num:"+91 99000 5••01", when:"1h",
+        tag:"Planner · Hyderabad", out:{t:"6 weddings sent", k:"book"},
+        facts:[["Role","Wedding planner"],["Based","Hyderabad"],["Sent you","6 weddings",1],
+               ["Last referral","Aug 2026"],["Commission","None — mutual"],["Value","₹9.4L booked","money"],["Since","2024"]],
+        said:"“I’ve got a December couple looking for candid — are you open the second week?”",
+        timeline:[
+          { k:"sara", ago:"1h ago",    what:"Answered, checked Dec week 2 — 3 dates open." },
+          { k:"you",  ago:"Aug 2026",  what:"Last referral — Meera & Gautam, booked." },
+          { k:"next", due:2, ago:"in 2 days", what:"Send December availability + package sheet." }
+        ] },
+
+      { seg:"collab", d:3, i:"RB", c:"#13A86C", cat:"collab", sub:"Makeup artist", name:"Rhea — Makeup Artist", num:"+91 73920 6••88", when:"3d",
+        tag:"Bridal makeup", out:{t:"2 weddings sent", k:"new"},
+        facts:[["Role","Bridal makeup artist"],["Based","Hyderabad"],["Sent you","2 weddings",1],
+               ["Last referral","Sep 2026"],["Commission","None — mutual"],["Value","₹2.6L booked","money"],["Since","2025"]],
+        said:"“Sharing your name with a bride for January — same look we did in September.”",
+        timeline:[
+          { k:"sara", ago:"3 days ago", what:"Answered, saved the February lead." },
+          { k:"next", due:7, ago:"in 1 week", what:"Check whether the bride called in." }
+        ] },
+
+      { seg:"prospect", d:1, i:"KR", c:"#8A7E72", holdDates:["2027-01-09"], cat:"enquiry", sub:"Date held", since:1, name:"Kavya Reddy", num:"+91 94400 2••17", when:"1d",
+        tag:"9 Jan · wedding", out:{t:"Date free · held", k:"book"},
+        facts:[["Date","9 Jan 2027"],["Type","Wedding"],["Venue","Ramoji, Hyderabad",1],
+               ["Guests","400"],["Coverage","1 day"],["Budget","₹1.2–1.5L","money"],["Came from","Referral — Shruti"]],
+        said:"“Shruti gave us your number. We need just the wedding day, not the reception.”",
+        timeline:[
+          { k:"sara", ago:"yesterday",  what:"Answered, checked 9 Jan — free. Held for 48 hours." },
+          { k:"next", due:0, ago:"today", what:"Follow-up — hold expires this evening." }
+        ] },
+
+      { seg:"collab", d:1, i:"RD", c:"#C79440", cat:"collab", sub:"Decor", name:"Ramesh — Decor", num:"+91 90000 7••63", when:"1d",
+        tag:"Decor · Hyderabad", out:{t:"3 weddings sent", k:"new"},
+        facts:[["Role","Wedding decor"],["Based","Hyderabad"],["Sent you","3 weddings",1],
+               ["Last referral","Sep 2026"],["Commission","None — mutual"],["Value","₹4.1L booked","money"],["Since","2025"]],
+        said:"“Doing a March wedding at Ramoji — they still need a photographer.”",
+        timeline:[
+          { k:"sara", ago:"yesterday",  what:"Answered, saved the March lead." },
+          { k:"next", due:3, ago:"in 3 days", what:"Check whether the couple called in." }
+        ] },
+
+      { seg:"prospect", d:8, i:"NR", c:"#C05F3B", cat:"quoted", sub:"Quote sent", since:8, name:"Nikhil Rao", num:"+91 98490 3••55", when:"8d",
+        tag:"Reception", out:{t:"Callback 6pm", k:"callback"},
+        facts:[["Date","Undecided · March"],["Type","Reception"],["Venue","Not fixed",1],
+               ["Guests","250"],["Coverage","4 hours"],["Budget","₹50–70k","money"],["Came from","Instagram DM → call"]],
+        said:"“Still comparing a few studios. Can you send your package sheet?”",
+        timeline:[
+          { k:"sara", ago:"8 days ago", what:"Answered, saved enquiry. Asked for packages." },
+          { k:"you",  ago:"7 days ago", what:"Sent package PDF on WhatsApp." },
+          { k:"next", due:2, ago:"in 2 days", what:"Follow-up — no reply to the packages yet." }
+        ] },
+
+      { seg:"customer", d:9, i:"AV", c:"#13A86C", cat:"post", sub:"Awaiting client selection", since:19, name:"Anjali & Vikram", num:"+91 77020 9••31", when:"9d",
+        tag:"Shot · Sep 2026", out:{t:"Balance due", k:"callback"},
+        engagement:{ dates:["2026-09-18"], slot:"Full day",
+                     title:"Wedding", date:"18 Sep 2026", venue:"Taj Falaknuma",
+                     value:"₹2,80,000", paid:"₹1,00,000", balance:"₹1,80,000", stage:"In progress" },
+        events:[
+          { k:"preview", d:9,  note:"Teaser of 25 photos shared" },
+          { k:"edit",    d:16, note:"Editing started — 2,100 frames" },
+          { k:"shoot",   d:21, note:"1 day covered at Taj Falaknuma" },
+          { k:"payment", d:34, note:"Advance ₹1,00,000 received" },
+          { k:"booking", d:36, note:"Booked for 18 Jan" }
+        ],
+        facts:[["Shot on","18 Sep 2026"],["Type","Wedding"],["Venue","Taj Falaknuma",1],
+               ["Coverage","1 day"],["Album","In edit"],["Balance","₹1,80,000","money"],["Came from","Decor — Ramesh"]],
+        said:"“When can we expect the full set? And we’ll clear the balance then.”",
+        timeline:[
+          { k:"you",  ago:"Sep 2026",    what:"Shot the wedding at Taj Falaknuma." },
+          { k:"sara", ago:"9 days ago",  what:"Called about delivery date, logged balance query." },
+          { k:"next", due:4, ago:"in 4 days", what:"Share full set, collect ₹1,80,000 balance." }
+        ] },
+
+      { seg:"customer", d:34, i:"IN", c:"#0A7B4C", since:6, cat:"booked", sub:"Crew assigned",
+        name:"Ishaan & Nidhi", num:"+91 98490 1••22", when:"5w", tag:"6–7 Dec · wedding",
+        out:{t:"Booked", k:"book"},
+        engagement:{ dates:["2026-12-06","2026-12-07"], slot:"Full day",
+                     title:"Wedding + reception", date:"6–7 Dec 2026", venue:"Taj Krishna",
+                     value:"₹2,40,000", paid:"₹80,000", balance:"₹1,60,000", stage:"Booked · Crew assigned" },
+        events:[ { k:"booking", d:34, note:"Booked for 6–7 Dec" },
+                 { k:"payment", d:33, note:"Advance ₹80,000 received" } ],
+        facts:[["Date","6–7 Dec 2026"],["Type","Wedding + reception"],["Venue","Taj Krishna",1],
+               ["Guests","500"],["Coverage","2 days · full"],["Budget","₹2,40,000","money"],["Came from","Planner — Shruti"]],
+        said:"“Two days, and we want a second shooter for the reception.”",
+        timeline:[ { k:"you", ago:"5 weeks ago", what:"Booked and advance taken." },
+                   { k:"next", due:6, ago:"in 6 days", what:"Confirm second shooter." } ] },
+
+      { seg:"customer", d:40, i:"RS", c:"#C05F3B", since:11, cat:"booked", sub:"Pre-production",
+        name:"Rohit & Sana", num:"+91 90000 4••18", when:"6w", tag:"8 Dec · wedding",
+        out:{t:"Booked", k:"book"},
+        engagement:{ dates:["2026-12-08"], slot:"Full day",
+                     title:"Wedding", date:"8 Dec 2026", venue:"Ramoji Film City",
+                     value:"₹1,60,000", paid:"₹50,000", balance:"₹1,10,000", stage:"Booked · Pre-production" },
+        events:[ { k:"booking", d:40, note:"Booked for 8 Dec" },
+                 { k:"payment", d:39, note:"Advance ₹50,000 received" } ],
+        facts:[["Date","8 Dec 2026"],["Type","Wedding"],["Venue","Ramoji Film City",1],
+               ["Guests","300"],["Coverage","1 day · full"],["Budget","₹1,60,000","money"],["Came from","Instagram DM → call"]],
+        said:"“Full day, candid, and a same-day edit if possible.”",
+        timeline:[ { k:"you", ago:"6 weeks ago", what:"Booked and advance taken." },
+                   { k:"next", due:2, ago:"in 2 days", what:"Venue recce." } ] },
+
+      { seg:"customer", d:20, i:"AT", c:"#C79440", since:4, cat:"booked", sub:"Advance received",
+        name:"Aarav & Tara", num:"+91 73400 8••05", when:"3w", tag:"13 Dec · reception",
+        out:{t:"Booked", k:"book"},
+        engagement:{ dates:["2026-12-13"], slot:"Evening",
+                     title:"Reception only", date:"13 Dec 2026", venue:"Novotel, HICC",
+                     value:"₹70,000", paid:"₹20,000", balance:"₹50,000", stage:"Booked · Advance received" },
+        events:[ { k:"booking", d:20, note:"Booked — evening only" },
+                 { k:"payment", d:20, note:"Advance ₹20,000 received" } ],
+        facts:[["Date","13 Dec 2026"],["Type","Reception"],["Venue","Novotel, HICC",1],
+               ["Guests","250"],["Coverage","Evening · 5 hours"],["Budget","₹70,000","money"],["Came from","Decor — Ramesh"]],
+        said:"“Only the reception — the wedding is in our hometown.”",
+        timeline:[ { k:"you", ago:"3 weeks ago", what:"Booked the evening slot." },
+                   { k:"next", due:9, ago:"in 9 days", what:"Share the shot list." } ] },
+
+      { seg:"customer", d:48, i:"KL", c:"#8A7E72", since:9, cat:"booked", sub:"Crew assigned",
+        name:"Karthik & Leela", num:"+91 81420 6••77", when:"7w", tag:"20–21 Dec · wedding",
+        out:{t:"Booked", k:"book"},
+        engagement:{ dates:["2026-12-20","2026-12-21"], slot:"Full day",
+                     title:"Wedding + sangeet", date:"20–21 Dec 2026", venue:"Falaknuma Palace",
+                     value:"₹3,10,000", paid:"₹1,00,000", balance:"₹2,10,000", stage:"Booked · Crew assigned" },
+        events:[ { k:"booking", d:48, note:"Booked for 20–21 Dec" },
+                 { k:"payment", d:47, note:"Advance ₹1,00,000 received" } ],
+        facts:[["Date","20–21 Dec 2026"],["Type","Wedding + sangeet"],["Venue","Falaknuma Palace",1],
+               ["Guests","700"],["Coverage","2 days · full"],["Budget","₹3,10,000","money"],["Came from","Venue — Falaknuma"]],
+        said:"“Palace wedding — we need drone and a cinematographer.”",
+        timeline:[ { k:"you", ago:"7 weeks ago", what:"Booked, crew locked." },
+                   { k:"next", due:12, ago:"in 12 days", what:"Drone permissions." } ] },
+
+      { seg:"customer", d:15, i:"NM", c:"#13A86C", since:2, cat:"booked", sub:"Advance received",
+        name:"Neel & Myra", num:"+91 96500 3••41", when:"2w", tag:"27 Dec · muhurtham",
+        out:{t:"Booked", k:"book"},
+        engagement:{ dates:["2026-12-27"], slot:"Morning",
+                     title:"Muhurtham only", date:"27 Dec 2026", venue:"Kalyana Mandapam",
+                     value:"₹55,000", paid:"₹15,000", balance:"₹40,000", stage:"Booked · Advance received" },
+        events:[ { k:"booking", d:15, note:"Booked — morning only" },
+                 { k:"payment", d:15, note:"Advance ₹15,000 received" } ],
+        facts:[["Date","27 Dec 2026"],["Type","Muhurtham"],["Venue","Kalyana Mandapam",1],
+               ["Guests","200"],["Coverage","Morning · 4 hours"],["Budget","₹55,000","money"],["Came from","Makeup — Rhea"]],
+        said:"“Just the morning ceremony, we finish by noon.”",
+        timeline:[ { k:"you", ago:"2 weeks ago", what:"Booked the morning slot." },
+                   { k:"next", due:5, ago:"in 5 days", what:"Confirm timings with the priest." } ] },
+
+      { seg:"prospect", d:0, i:"RI", c:"#C05F3B", holdDates:["2026-12-15"], since:0,
+        cat:"enquiry", sub:"Date held", name:"Rahul Iyer", num:"+91 99590 7••14", when:"3h",
+        tag:"15 Dec · wedding", out:{t:"Date free · held", k:"book"},
+        facts:[["Date","15 Dec 2026"],["Type","Wedding"],["Venue","Not fixed",1],
+               ["Guests","350"],["Coverage","1 day"],["Budget","₹1.2–1.5L","money"],["Came from","Instagram DM → call"]],
+        said:"“Is the 15th still open? We’re deciding this week.”",
+        timeline:[ { k:"sara", ago:"3h ago", what:"Answered, checked 15 Dec — free. Held 48 hours." },
+                   { k:"next", due:2, ago:"in 2 days", what:"Hold expires — confirm or release." } ] },
+
+      { seg:"prospect", d:0, i:"TM", c:"#6B6056", cat:"enquiry", sub:"New enquiry",
+        name:"Tejas — Falaknuma Events", num:"+91 96180 2••74", when:"12m",
+        tag:"Venue · enquiry", out:{t:"Enquiry saved", k:"new"},
+        facts:[["Date","Multiple · 2026"],["Type","Venue partnership"],["Venue","Taj Falaknuma",1],
+               ["Guests","—"],["Coverage","—"],["Budget","—","money"],["Came from","Cold call — inbound"]],
+        said:"“We host about 40 weddings a year and we’re short of a photographer we trust. Can we put you on our panel?”",
+        timeline:[
+          { k:"sara", ago:"12m ago",   what:"Answered, saved the panel enquiry." },
+          { k:"next", due:1, ago:"in 1 day", what:"Call back — decide whether to join the panel." }
+        ] },
+
+      { seg:"prospect", d:11, i:"FQ", c:"#0A7B4C", cat:"quoted", sub:"In negotiation", since:11, name:"Farhan Qureshi", num:"+91 81060 4••28", when:"11d",
+        tag:"Pre-wedding", out:{t:"Not interested", k:"info"},
+        facts:[["Date","Jan · flexible"],["Type","Pre-wedding"],["Venue","Goa",1],
+               ["Guests","—"],["Coverage","2 days"],["Budget","Under ₹30k","money"],["Came from","Instagram DM → call"]],
+        said:"“Goa for two days — but that’s above what we had in mind.”",
+        timeline:[
+          { k:"sara", ago:"11 days ago", what:"Answered, quoted travel + 2 days. Budget too far apart." },
+          { k:"next", due:300, ago:"Jun 2026", what:"Re-approach with a monsoon offer." }
+        ] }
+    ]
+  };
+</script>
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<style>
+  *{box-sizing:border-box} body{margin:0}
+  :root{
+    --ground:#F4F1EC; --card:#FFFDFA; --ink:#2B2724; --muted:#8B8178;
+    --brand:#13A86C; --brand-deep:#0A7B4C; --brand-tint:#DAF3E5;
+    --coral:#C05F3B; --coral-tint:#FBE7DE; --coral-deep:#8E4326;
+    --amber:#C79440; --amber-tint:#F8EBD5;
+    --violet:#8A7E72; --violet-tint:#ECE8E2;
+    --line:#E7E1D9; --shadow:0 8px 26px rgba(60,48,38,.10);
+  }
+  :root[data-theme="dark"]{ --ground:#F4F1EC; --card:#FFFDFA; --ink:#2B2724; }
+  html,body{height:100%}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums;
+  }
+  .app{max-width:440px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+  .scroll{flex:1;overflow-y:auto;padding:0 16px 108px;-webkit-overflow-scrolling:touch}
+
+  .top{position:sticky;top:0;z-index:5;background:linear-gradient(180deg,var(--ground) 72%,transparent);
+       padding:18px 16px 12px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:9px}
+  .logo{width:34px;height:34px;border-radius:11px;background:linear-gradient(150deg,var(--brand),var(--brand-deep));
+        display:grid;place-items:center;box-shadow:0 4px 12px rgba(10,123,76,.35)}
+  .logo span{display:block;width:4px;height:14px;border-radius:3px;background:#fff;box-shadow:8px 0 #fff,-8px 0 rgba(255,255,255,.55);
+        animation:eq 1s ease-in-out infinite alternate}
+  @keyframes eq{from{height:7px}to{height:14px}}
+  .brand b{font-size:20px;letter-spacing:-.02em}
+  .brand b i{color:var(--coral);font-style:normal}
+  .brand small{display:block;color:var(--muted);font-size:11px;margin-top:1px;font-weight:600}
+  .live{display:inline-flex;align-items:center;gap:6px;background:var(--brand-tint);color:var(--brand-deep);
+        font-size:12px;font-weight:700;padding:6px 11px;border-radius:999px}
+  .live i{width:7px;height:7px;border-radius:50%;background:var(--brand);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(19,168,108,.5)}70%{box-shadow:0 0 0 7px rgba(19,168,108,0)}100%{box-shadow:0 0 0 0 rgba(19,168,108,0)}}
+
+  h1{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:16px 4px 10px;font-weight:700}
+
+  /* Calls */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .stat{background:var(--card);border-radius:16px;padding:14px 12px;box-shadow:var(--shadow)}
+  .stat .n{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .stat .l{font-size:11.5px;color:var(--muted);margin-top:5px;font-weight:600}
+  .stat.book .n{color:var(--brand-deep)} .stat.new .n{color:var(--coral)}
+  .callnow{margin-top:14px;background:linear-gradient(135deg,#2B2724,#413A34);color:#F3EFE8;border-radius:18px;
+        padding:16px;display:flex;align-items:center;gap:13px;box-shadow:var(--shadow)}
+  .callnow .ph{width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.12);display:grid;place-items:center;font-size:20px}
+  .callnow .t1{font-size:12px;color:#6FE0AC;font-weight:700;letter-spacing:.03em}
+  .callnow .t2{font-size:16px;font-weight:700;margin-top:2px}
+  .callnow .dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:#45D898;margin-left:3px;animation:blink 1.2s infinite}
+  .callnow .dots span:nth-child(2){animation-delay:.2s}.callnow .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  .list{display:flex;flex-direction:column;gap:10px}
+  .row{background:var(--card);border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+  .av{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;flex:0 0 auto}
+  .who{flex:1;min-width:0}
+  .who b{font-size:15.5px;letter-spacing:-.01em}
+  .who .num{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:600}
+  .chips{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+  .chip{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .c-tag{background:var(--brand-tint);color:var(--brand-deep)}
+  .c-book{background:var(--brand);color:#fff}
+  .c-callback{background:var(--amber-tint);color:#7A5E2E}
+  .c-info{background:#EFEBE4;color:#7E756B}
+  .c-new{background:var(--coral-tint);color:#8E4326}
+  .time{font-size:12px;color:var(--muted);font-weight:600;flex:0 0 auto;align-self:flex-start;margin-top:2px}
+
+  /* Patients */
+  .headline{margin:8px 4px 0}
+  .headline .big{font-size:27px;font-weight:800;letter-spacing:-.03em;line-height:1.08}
+  .headline .big em{font-style:italic;font-family:Georgia,"Times New Roman",serif;color:var(--brand-deep);font-weight:700}
+  .headline .sub{color:var(--muted);font-size:14px;margin-top:8px;font-weight:600}
+  .owned{display:inline-flex;align-items:center;gap:7px;margin-top:12px;background:var(--brand);color:#fff;
+        font-weight:700;font-size:13px;padding:8px 13px;border-radius:999px;box-shadow:0 6px 16px rgba(19,168,108,.35)}
+  .search{margin:16px 0 8px;background:var(--card);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:9px;
+        box-shadow:var(--shadow);color:var(--muted);font-size:14.5px;font-weight:600}
+  .search svg{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2}
+  .count{display:flex;align-items:baseline;gap:8px;margin:4px 4px 10px}
+  .count b{font-size:15px} .count span{color:var(--muted);font-size:12.5px;font-weight:600}
+  .p{background:var(--card);border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+  .pi{flex:1;min-width:0}
+  .pi .nm{font-size:15.5px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+  .pi .num{font-size:12.8px;color:var(--muted);margin-top:2px;font-weight:600;letter-spacing:.02em}
+  .pi .cond{margin-top:7px}
+  .meta{text-align:right;flex:0 0 auto}
+  .meta .st{font-size:11.5px;font-weight:700}
+  .meta .st.book{color:var(--brand-deep)} .meta .st.new{color:var(--coral)} .meta .st.callback{color:#7A5E2E}
+  .meta .dt{font-size:11px;color:var(--muted);margin-top:3px;font-weight:600}
+
+  /* Broadcast + Pharmacy shared */
+  .card{background:var(--card);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+  .lbl{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:9px}
+  .templates{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .tpl{border:1.5px solid var(--line);border-radius:13px;padding:11px 12px;font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
+  .tpl .e{font-size:17px}
+  .tpl.sel{border-color:var(--coral);background:var(--coral-tint);color:var(--coral-deep)}
+  .msg{background:#F8F5F0;border:1px solid var(--line);border-radius:13px;padding:13px;font-size:14px;line-height:1.5;color:var(--ink);margin-top:14px}
+  .msg b{color:var(--brand-deep)}
+  .aud{display:flex;align-items:center;justify-content:space-between;margin-top:12px;background:var(--brand-tint);
+       border-radius:13px;padding:12px 14px}
+  .aud .who{font-weight:700;font-size:14px;color:var(--brand-deep)}
+  .aud .cnt{font-weight:800;font-size:15px;color:var(--brand-deep)}
+  .send{margin-top:13px;background:var(--coral);color:#fff;border:none;width:100%;padding:15px;border-radius:14px;
+        font-weight:800;font-size:16px;box-shadow:0 8px 20px rgba(255,111,89,.4)}
+  .send.violet{background:var(--violet);box-shadow:0 8px 20px rgba(122,90,240,.4)}
+  .sent{display:flex;flex-direction:column;gap:10px}
+  .s{background:var(--card);border-radius:16px;padding:13px 14px;box-shadow:var(--shadow)}
+  .s .h{display:flex;align-items:center;gap:9px}
+  .s .h .e{font-size:18px}.s .h b{font-size:14.5px;flex:1}.s .h .ago{font-size:11.5px;color:var(--muted);font-weight:600}
+  .s .stat{display:flex;gap:16px;margin-top:10px}
+  .s .stat div{font-size:12.5px;color:var(--muted);font-weight:600}
+  .s .stat b{display:block;font-size:17px;color:var(--ink);font-weight:800;letter-spacing:-.02em}
+  .s .stat .g b{color:var(--brand-deep)}
+
+  /* Pharmacy */
+  .prow{background:var(--card);border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+  .picon{width:42px;height:42px;border-radius:13px;background:var(--violet-tint);display:grid;place-items:center;font-size:20px;flex:0 0 auto}
+  .pinfo{flex:1;min-width:0}
+  .pinfo b{font-size:14.5px;letter-spacing:-.005em;display:block}
+  .pinfo .meta2{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}
+  .price{font-size:14px;font-weight:800;color:var(--violet)}
+  .stockdot{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--brand-tint);color:var(--brand-deep)}
+  .stockdot.low{background:var(--amber-tint);color:#7A5E2E}
+  .promopill{font-size:10.5px;font-weight:800;color:#fff;background:var(--coral);padding:3px 8px;border-radius:999px;flex:0 0 auto}
+
+  /* Tabs */
+  .tabs{position:fixed;left:0;right:0;bottom:0;max-width:440px;margin:0 auto;background:rgba(255,255,255,.92);
+        backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;justify-content:space-around;
+        padding:9px 6px max(9px,env(safe-area-inset-bottom))}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10.5px;font-weight:700;flex:1;
+       text-decoration:none;background:none;border:none;font-family:inherit;cursor:pointer;padding:0}
+  .tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tab.on{color:var(--brand-deep)}
+  .tab.on svg{fill:var(--brand-tint)}
+
+  .view{display:none}
+  .view.active{display:block}
+  .fade{opacity:0;transform:translateY(9px);animation:up .5s ease forwards}
+  @keyframes up{to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}.fade{opacity:1;transform:none}}
+</style><style>
+  /* ── Dates ─────────────────────────────────────────────────── */
+  .cal{background:var(--card);border-radius:18px;padding:14px;box-shadow:var(--shadow);margin-top:12px}
+  .cal .mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .cal .mh b{font-size:16px;letter-spacing:-.01em}
+  .cal .mh .peak{font-size:11px;font-weight:700;color:var(--coral-deep);background:var(--coral-tint);padding:4px 9px;border-radius:999px}
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+  .dow div{text-align:center;font-size:10.5px;font-weight:700;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .day{aspect-ratio:1;border-radius:10px;display:grid;place-items:center;font-size:13px;font-weight:700;background:#F6F3EE;color:var(--muted)}
+  .day.open{background:var(--brand-tint);color:var(--brand-deep)}
+  .day.booked{background:var(--ink);color:#6FE0AC}
+  .day.hold{background:var(--amber-tint);color:#7A5E2E}
+  .day.pad{background:transparent}
+  .day{position:relative}
+  .day.partial{background:linear-gradient(180deg,var(--ink) 0 50%,var(--brand-tint) 50% 100%);color:#fff}
+  .day.blocked{background:repeating-linear-gradient(45deg,#EAE5DD 0 4px,#DED8CF 4px 8px);color:#A29A8F}
+  .day.pick{outline:2.5px solid var(--coral);outline-offset:1px}
+  .day .hn{position:absolute;top:-3px;right:-3px;background:var(--coral);color:#fff;font-size:9px;
+           font-style:normal;font-weight:800;min-width:14px;height:14px;border-radius:7px;display:grid;place-items:center}
+  .key i.half{background:linear-gradient(180deg,var(--ink) 0 50%,var(--brand-tint) 50% 100%)}
+  #dayInfo{margin-top:11px;display:flex;flex-direction:column;gap:5px}
+  .di{font-size:12.5px;font-weight:600;padding:8px 11px;border-radius:11px;background:#F6F3EE;color:var(--muted)}
+  .di b{font-weight:800;color:var(--ink);margin-right:5px}
+  .di.booked{background:var(--brand-tint);color:var(--brand-deep)} .di.booked b{color:var(--brand-deep)}
+  .di.hold{background:var(--amber-tint);color:#7A5E2E} .di.hold b{color:#7A5E2E}
+  .di.blocked{background:#EEEAE3}
+  .key{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .key span{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--muted)}
+  .key i{width:11px;height:11px;border-radius:4px;display:inline-block}
+  .ask{background:var(--card);border-radius:16px;padding:13px 14px;box-shadow:var(--shadow);display:flex;gap:11px;align-items:flex-start}
+  .ask .q{flex:1}
+  .ask .q b{font-size:14.5px;letter-spacing:-.01em;display:block}
+  .ask .q .said{font-size:12.5px;color:var(--muted);margin-top:3px;font-weight:600;font-style:italic}
+  .verdict{font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:999px;flex:0 0 auto}
+  .v-free{background:var(--brand);color:#fff}
+  .v-busy{background:var(--ink);color:#6FE0AC}
+  .v-hold{background:var(--amber-tint);color:#7A5E2E}
+
+  /* ── Pills (segments + activity periods) ───────────────────── */
+  .segs{display:flex;gap:7px;margin:14px 0 4px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .seg{flex:0 0 auto;font-size:13px;font-weight:700;padding:9px 15px;border-radius:999px;background:var(--card);
+       color:var(--muted);box-shadow:var(--shadow);border:none;cursor:pointer;display:flex;align-items:center;gap:7px}
+  .seg.on{background:var(--brand);color:#fff}
+  .seg .n{font-size:11.5px;font-weight:800;background:rgba(0,0,0,.08);padding:1px 7px;border-radius:999px}
+  .seg.on .n{background:rgba(255,255,255,.25)}
+  .c-prospect{background:var(--coral-tint);color:#8E4326}
+  .c-customer{background:var(--brand);color:#fff}
+  .c-collab{background:var(--violet-tint);color:#6B6056}
+
+  .pc{background:var(--card);border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;
+      box-shadow:var(--shadow);cursor:pointer;transition:transform .12s}
+  .pc:active{transform:scale(.985)}
+  .pc .who{flex:1;min-width:0}
+  .pc .who b{font-size:15.5px;letter-spacing:-.01em}
+  .pc .who .num{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:600}
+  .pc .arrow{color:var(--muted);font-size:18px;flex:0 0 auto}
+
+  /* ── Activity feed ─────────────────────────────────────────── */
+  .daygrp{margin-top:18px}
+  .daygrp .dh{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+              font-weight:700;margin:0 4px 9px}
+  .ev-row{background:var(--card);border-radius:16px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;
+          box-shadow:var(--shadow);margin-bottom:9px;cursor:pointer}
+  .ev-row .ei{width:38px;height:38px;border-radius:12px;background:var(--brand-tint);display:grid;place-items:center;
+              font-size:17px;flex:0 0 auto}
+  .ev-row.pay .ei{background:#E9EDE3}
+  .ev-row .et{flex:1;min-width:0}
+  .ev-row .et b{font-size:14.5px;letter-spacing:-.01em;display:block}
+  .ev-row .et .who2{font-size:12.5px;color:var(--brand-deep);font-weight:700;margin-top:2px}
+  .ev-row .et .note{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:3px;line-height:1.35}
+  .ev-row .when{font-size:11.5px;color:var(--muted);font-weight:600;flex:0 0 auto}
+  .empty{text-align:center;color:var(--muted);font-size:13.5px;font-weight:600;padding:34px 12px}
+
+  /* ── Detail sheet ──────────────────────────────────────────── */
+  .scrim{position:fixed;inset:0;background:rgba(43,39,36,.45);opacity:0;pointer-events:none;transition:opacity .22s;z-index:40}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:50%;transform:translate(-50%,100%);bottom:0;width:100%;max-width:440px;z-index:41;
+         background:var(--ground);border-radius:24px 24px 0 0;max-height:92dvh;overflow-y:auto;
+         transition:transform .28s cubic-bezier(.22,1,.36,1);box-shadow:0 -10px 40px rgba(60,48,38,.22)}
+  .sheet.on{transform:translate(-50%,0)}
+  .grab{width:42px;height:4px;border-radius:99px;background:#D6CEC3;margin:10px auto 2px}
+  .sh-top{padding:8px 18px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--ground);z-index:2}
+  .sh-top .nm{flex:1;min-width:0}
+  .sh-top .nm b{font-size:19px;letter-spacing:-.02em}
+  .sh-top .nm .num{font-size:13px;color:var(--muted);margin-top:2px;font-weight:600}
+  .sh-x{width:32px;height:32px;border-radius:50%;border:none;background:#E4DED5;color:var(--ink);font-size:17px;cursor:pointer;flex:0 0 auto}
+  .sh-body{padding:0 18px 28px}
+  .block{background:var(--card);border-radius:18px;padding:15px;box-shadow:var(--shadow);margin-bottom:12px}
+  .block .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:11px;
+              display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .facts{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .fact .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .fact .v{font-size:14.5px;font-weight:700;margin-top:3px;letter-spacing:-.01em}
+  .fact.wide{grid-column:span 2}
+  .fact.money .v{color:var(--brand-deep)}
+  .said-q{background:var(--brand-tint);border-radius:14px;padding:12px 13px;font-size:13.5px;font-style:italic;
+          color:var(--brand-deep);font-weight:600;line-height:1.45;margin-top:11px}
+
+  /* engagement header */
+  .engage{background:linear-gradient(135deg,#2B2724,#413A34);color:#F3EFE8;border-radius:18px;padding:16px;
+          box-shadow:var(--shadow);margin-bottom:12px}
+  .engage .et1{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6FE0AC;font-weight:700}
+  .engage .et2{font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
+  .engage .et3{font-size:12.5px;color:#8ED4B2;font-weight:600;margin-top:3px}
+  .money3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.14)}
+  .money3 div .k{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#6FE0AC;font-weight:700}
+  .money3 div .v{font-size:15px;font-weight:800;margin-top:3px}
+  .money3 .bal .v{color:#DCA98F}
+
+  /* event ledger in the sheet */
+  .led{display:flex;flex-direction:column;gap:2px}
+  .led .li{display:flex;gap:11px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+  .led .li:last-child{border-bottom:none}
+  .led .li .ei{width:30px;height:30px;border-radius:9px;background:var(--brand-tint);display:grid;place-items:center;font-size:14px;flex:0 0 auto}
+  .led .li .lt{flex:1;min-width:0}
+  .led .li .lt b{font-size:14px;letter-spacing:-.01em;display:block}
+  .led .li .lt .note{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:2px;line-height:1.35}
+  .led .li .ago2{font-size:11.5px;color:var(--muted);font-weight:600;flex:0 0 auto}
+  .led .li.fresh{animation:pop .45s ease}
+  @keyframes pop{from{background:var(--brand-tint);transform:translateX(-6px);opacity:0}to{background:transparent;transform:none;opacity:1}}
+
+  .addbtn{border:none;background:var(--brand-tint);color:var(--brand-deep);font-weight:800;font-size:12px;
+          padding:6px 12px;border-radius:999px;cursor:pointer;font-family:inherit}
+  .picker{display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;padding-top:13px;border-top:1px solid var(--line)}
+  .picker.on{display:grid}
+  .pick{border:none;background:#F6F3EE;border-radius:13px;padding:11px 10px;font-family:inherit;font-size:12.5px;
+        font-weight:700;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left}
+  .pick:active{background:var(--brand-tint)}
+  .pick .pe{font-size:16px}
+
+  .tl{position:relative;padding-left:22px}
+  .tl::before{content:"";position:absolute;left:5px;top:5px;bottom:9px;width:2px;background:var(--line)}
+  .ev{position:relative;padding-bottom:16px}
+  .ev:last-child{padding-bottom:0}
+  .ev::before{content:"";position:absolute;left:-21px;top:4px;width:12px;height:12px;border-radius:50%;
+              background:var(--card);border:2.5px solid var(--brand)}
+  .ev.you::before{border-color:var(--coral)}
+  .ev.next::before{border-color:#CFC7BC;background:#F6F3EE}
+  .ev .hd{display:flex;align-items:baseline;gap:8px}
+  .ev .by{font-size:11.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+  .ev.sara .by{color:var(--brand-deep)} .ev.you .by{color:var(--coral-deep)} .ev.next .by{color:var(--muted)}
+  .ev .ago{font-size:11.5px;color:var(--muted);font-weight:600}
+  .ev .what{font-size:14px;margin-top:3px;line-height:1.4}
+  .ev.next .what{color:var(--muted)}
+
+  /* ── Calls filter bar ──────────────────────────────────────── */
+  .filt{display:flex;align-items:center;gap:9px;margin-top:14px}
+  .filt .fl{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;flex:0 0 auto}
+  .sel{flex:1;appearance:none;-webkit-appearance:none;border:none;background:var(--card);box-shadow:var(--shadow);
+       border-radius:14px;padding:12px 38px 12px 14px;font-family:inherit;font-size:14.5px;font-weight:700;
+       color:var(--ink);cursor:pointer;letter-spacing:-.01em;
+       background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236A8C89' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
+       background-repeat:no-repeat;background-position:right 12px center;background-size:17px}
+  .sel:focus{outline:2px solid var(--brand);outline-offset:1px}
+  .range{display:none;gap:9px;margin-top:9px;align-items:center}
+  .range.on{display:flex}
+  .range input{flex:1;min-width:0;border:none;background:var(--card);box-shadow:var(--shadow);border-radius:14px;
+               padding:11px 12px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink)}
+  .range .to{font-size:12.5px;color:var(--muted);font-weight:700;flex:0 0 auto}
+  .fcount{font-size:12.5px;color:var(--muted);font-weight:600;margin:12px 4px 0}
+
+  /* ── Status chips & the convert flow ───────────────────────── */
+  .st-amber{background:var(--amber-tint);color:#7A5E2E}
+  .st-brand{background:var(--brand-tint);color:var(--brand-deep)}
+  .st-violet{background:var(--violet-tint);color:#6B6056}
+  .st-deep{background:var(--brand);color:#fff}
+  .st-coral{background:var(--coral-tint);color:#8E4326}
+  .st-open{background:#EFEBE4;color:#7E756B}
+
+  .statecard{background:var(--card);border-radius:18px;padding:15px;box-shadow:var(--shadow);margin-bottom:12px}
+  .statecard .sr{display:flex;align-items:center;gap:10px}
+  .statecard .sr .cur{flex:1;min-width:0}
+  .statecard .cur .k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .statecard .cur .vchip{margin-top:5px;display:inline-block;font-size:13px;font-weight:800;padding:5px 12px;border-radius:999px}
+  .cta{border:none;border-radius:13px;padding:11px 15px;font-family:inherit;font-size:13.5px;font-weight:800;
+       cursor:pointer;background:var(--ink);color:#F3EFE8;flex:0 0 auto}
+  .cta.ghost{background:#E8E2D9;color:var(--ink)}
+
+  .stpick{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .stpick.on{display:block}
+  .stpick .hint2{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:10px;line-height:1.4}
+  .opts{display:flex;flex-direction:column;gap:7px}
+  .opt{display:flex;align-items:center;gap:10px;background:#F6F3EE;border:2px solid transparent;border-radius:13px;
+       padding:11px 12px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;color:var(--ink);text-align:left;width:100%}
+  .opt.sel2{border-color:var(--brand);background:var(--brand-tint)}
+  .opt .dot{width:17px;height:17px;border-radius:50%;border:2.5px solid #CFC7BC;flex:0 0 auto;display:grid;place-items:center}
+  .opt.sel2 .dot{border-color:var(--brand)}
+  .opt.sel2 .dot::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand)}
+  .submit{width:100%;margin-top:12px;border:none;border-radius:14px;padding:14px;font-family:inherit;font-size:14.5px;
+          font-weight:800;background:var(--brand);color:#fff;cursor:pointer}
+  .submit:disabled{background:#DFD8CE;color:#AFA79D;cursor:default}
+  .toast{position:fixed;left:50%;transform:translate(-50%,16px);bottom:92px;z-index:60;background:var(--ink);color:#F3EFE8;
+         font-size:13.5px;font-weight:700;padding:12px 18px;border-radius:999px;box-shadow:0 8px 26px rgba(60,48,38,.3);
+         opacity:0;pointer-events:none;transition:all .26s}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+
+  .cfilt{margin:10px 0 2px}
+  .reset{display:block;margin:22px auto 4px;border:none;background:transparent;color:var(--muted);
+         font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:.6;padding:8px}
+  .reset:active{opacity:1}
+
+  .flbl{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+        font-weight:700;margin:12px 2px 6px}
+  .flbl .opt2{text-transform:none;letter-spacing:0;font-size:11px;color:#AFA79D;font-weight:600;margin-left:5px}
+  .sel.w{width:100%;background-color:#F6F3EE;box-shadow:none}
+  .note-in{width:100%;border:none;background:#F6F3EE;border-radius:13px;padding:12px;font-family:inherit;
+           font-size:14px;font-weight:600;color:var(--ink);resize:none;line-height:1.45}
+  .note-in::placeholder{color:#AFA79D;font-weight:600}
+  .note-in:focus{outline:2px solid var(--brand);outline-offset:1px}
+  .subline{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:4px}
+
+  .frow{display:flex;gap:8px}
+  .frow .sel{flex:1;min-width:0;font-size:13.5px;padding-right:32px}
+  .frow .sel:disabled{opacity:.45;cursor:default}
+
+  /* ── Activity: one row per job ─────────────────────────────── */
+  .secn{display:inline-block;background:#E4DED5;color:var(--muted);font-size:11px;font-weight:800;
+        padding:1px 8px;border-radius:999px;margin-left:6px;letter-spacing:0}
+  .job{background:var(--card);border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;
+       box-shadow:var(--shadow);margin-bottom:9px;cursor:pointer;transition:transform .12s}
+  .job:active{transform:scale(.985)}
+  .job.done{opacity:.72}
+  .job .jt{flex:1;min-width:0}
+  .job .jt b{font-size:15.5px;letter-spacing:-.01em}
+  .job .jsub{font-size:12.5px;color:var(--muted);font-weight:600;margin:2px 0 6px}
+  .job .jage{flex:0 0 auto;text-align:right}
+  .job .jage b{display:block;font-size:15px;font-weight:800;letter-spacing:-.02em;color:var(--brand-deep)}
+  .job .jage span{display:block;font-size:10px;color:var(--muted);font-weight:700;margin-top:1px}
+  .job .jage.stale b{color:var(--coral-deep)}
+
+  /* ── Needs attention ───────────────────────────────────────── */
+  .attn{background:var(--card);border-radius:18px;padding:14px;box-shadow:var(--shadow);margin-top:14px;
+        border-left:4px solid var(--coral)}
+  .attn .ah{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+  .attn .ah b{font-size:14.5px;letter-spacing:-.01em}
+  .attn .ah .cnt2{font-size:11.5px;font-weight:800;background:var(--coral);color:#fff;padding:2px 8px;border-radius:999px}
+  .arow{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .arow:last-child{border-bottom:none;padding-bottom:0}
+  .arow .adot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-top:5px}
+  .adot.hot{background:var(--coral)} .adot.warn{background:var(--amber)}
+  .adot.money{background:var(--brand)} .adot.cold{background:#AFA79D}
+  .arow .at{flex:1;min-width:0}
+  .arow .at b{font-size:14px;letter-spacing:-.01em;display:block}
+  .arow .at .why{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:2px;line-height:1.35}
+  .arow .anm{font-size:11.5px;color:var(--brand-deep);font-weight:700;margin-top:3px}
+  .allclear{background:var(--brand-tint);border-radius:18px;padding:16px;margin-top:14px;text-align:center;
+            color:var(--brand-deep);font-weight:700;font-size:14px}
+
+  /* ── Coming up / Happened ──────────────────────────────────── */
+  .modes{display:flex;gap:4px;background:#E6E0D7;border-radius:999px;padding:4px;margin-top:16px}
+  .mode{flex:1;border:none;background:transparent;border-radius:999px;padding:10px;font-family:inherit;
+        font-size:13.5px;font-weight:800;color:var(--muted);cursor:pointer}
+  .mode.on{background:var(--card);color:var(--ink);box-shadow:0 2px 8px rgba(60,48,38,.10)}
+  .mode .mn{display:inline-block;font-size:11px;font-weight:800;background:rgba(0,0,0,.08);
+            padding:1px 7px;border-radius:999px;margin-left:5px}
+  .mode.on .mn{background:var(--brand);color:#fff}
+  .up{background:var(--card);border-radius:16px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;
+      box-shadow:var(--shadow);margin-bottom:9px;cursor:pointer}
+  .up .ui{width:38px;height:38px;border-radius:12px;background:var(--brand-tint);display:grid;place-items:center;
+          font-size:16px;flex:0 0 auto;color:var(--brand-deep);font-weight:800}
+  .up.soon .ui{background:var(--coral-tint);color:var(--coral-deep)}
+  .up .ut{flex:1;min-width:0}
+  .up .ut b{font-size:14.5px;letter-spacing:-.01em;display:block;line-height:1.3}
+  .up .ut .uw{font-size:12.5px;color:var(--brand-deep);font-weight:700;margin-top:3px}
+  .up .uwhen{font-size:11.5px;color:var(--muted);font-weight:700;flex:0 0 auto}
+</style>
+<div class="app">
+  <div class="top">
+    <div class="brand">
+      <div class="logo"><span></span></div>
+      <div><b>sar<i>a</i></b><small id="studio"></small></div>
+    </div>
+    <div class="live"><i></i> Online 24×7</div>
+  </div>
+
+  <div class="scroll">
+
+    <!-- ═══ CALLS ═══ -->
+    <section id="view-calls" class="view active">
+      <div class="callnow fade">
+        <div class="ph">📷</div>
+        <div style="flex:1"><div class="t1">YOU’RE SHOOTING · SARA’S ON THE PHONE</div>
+          <div class="t2"><span id="shooting"></span> <span class="dots"><span></span><span></span><span></span></span></div></div>
+      </div>
+      <div class="filt fade">
+        <span class="fl">Showing</span>
+        <select class="sel" id="callRange">
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="week" selected>This week</option>
+          <option value="lastweek">Last week</option>
+          <option value="custom">Date range…</option>
+        </select>
+      </div>
+      <div class="range" id="rangeRow">
+        <input type="date" id="dFrom"><span class="to">to</span><input type="date" id="dTo">
+      </div>
+      <div class="stats fade" style="margin-top:12px">
+        <div class="stat"><div class="n" id="t-ans">0</div><div class="l">Calls answered</div></div>
+        <div class="stat book"><div class="n" id="t-dates">0</div><div class="l">Dates held</div></div>
+        <div class="stat new"><div class="n" id="t-enq">0</div><div class="l">New enquiries</div></div>
+      </div>
+      <h1 id="callsHead">While you were shooting</h1>
+      <div class="list" id="calls"></div>
+    </section>
+
+    <!-- ═══ DATES ═══ -->
+    <section id="view-dates" class="view">
+      <div class="headline fade">
+        <div class="big" style="font-size:26px">“Are you free<br>on the 14th?”</div>
+        <div class="sub">The first thing every couple asks — answered in seconds, not on Monday.</div>
+      </div>
+      <div class="cal fade">
+        <div class="mh"><b id="month"></b><span class="peak" id="peak"></span></div>
+        <div class="dow"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
+        <div class="grid" id="grid"></div>
+        <div class="key">
+          <span><i style="background:var(--brand-tint)"></i>Open</span>
+          <span><i style="background:var(--ink)"></i>Booked</span>
+          <span><i class="half"></i>Part free</span>
+          <span><i style="background:var(--amber-tint)"></i>Held</span>
+          <span><i style="background:#DED8CF"></i>Blocked</span>
+        </div>
+        <div id="dayInfo"></div>
+      </div>
+      <h1>Asked today</h1>
+      <div class="list" id="asks"></div>
+    </section>
+
+    <!-- ═══ WORK ═══ -->
+    <section id="view-work" class="view">
+      <div class="headline fade">
+        <div class="big">Everyone who<br>ever called.</div>
+        <div class="sub">Live jobs, finished jobs, and the vendors who send you work.</div>
+        <span class="owned">🔒 <span id="owned"></span> contacts owned by you</span>
+      </div>
+      <div class="segs" id="segs"></div>
+      <div class="cfilt" id="cfilt" style="display:none">
+        <div class="frow">
+          <select class="sel" id="statusFilter"></select>
+          <select class="sel" id="subFilter"></select>
+        </div>
+      </div>
+      <div class="count fade"><b id="count"></b><span id="added"></span></div>
+      <div id="people"></div>
+      <button id="resetDemo" class="reset" style="display:none">Reset demo data</button>
+    </section>
+
+  </div>
+
+  <nav class="tabs">
+    <button class="tab on" data-view="calls">
+      <svg viewBox="0 0 24 24"><path d="M4 4h3l2 5-2 1a11 11 0 0 0 5 5l1-2 5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 2 6a2 2 0 0 1 2-2z"/></svg>Calls</button>
+    <button class="tab" data-view="dates">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Dates</button>
+    <button class="tab" data-view="work">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6.5a3 3 0 0 1 0 5.6M18.5 20a5 5 0 0 0-3-4.6"/></svg>Work</button>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+  <div class="sh-top">
+    <div class="av" id="sh-av"></div>
+    <div class="nm"><b id="sh-name"></b><div class="num" id="sh-num"></div></div>
+    <button class="sh-x" id="sh-x">✕</button>
+  </div>
+  <div class="sh-body">
+    <div class="statecard" id="sh-state">
+      <div class="sr">
+        <div class="cur"><div class="k" id="st-k">Status</div><div class="vchip" id="st-v"></div></div>
+        <button class="cta" id="st-btn"></button>
+      </div>
+      <div class="stpick" id="stpick">
+        <div class="hint2" id="st-hint"></div>
+        <label class="flbl">Category</label>
+        <select class="sel w" id="st-cat"></select>
+        <label class="flbl">Subcategory</label>
+        <select class="sel w" id="st-sub"></select>
+        <label class="flbl">Note <span class="opt2">optional</span></label>
+        <textarea class="note-in" id="st-note" rows="2" placeholder="Only if something is stuck or unusual…"></textarea>
+        <button class="submit" id="st-submit">Submit</button>
+      </div>
+    </div>
+
+    <div class="engage" id="sh-engage" style="display:none">
+      <div class="et1">ENGAGEMENT</div>
+      <div class="et2" id="en-title"></div>
+      <div class="et3" id="en-sub"></div>
+      <div class="money3">
+        <div><div class="k">Value</div><div class="v" id="en-val"></div></div>
+        <div><div class="k">Paid</div><div class="v" id="en-paid"></div></div>
+        <div class="bal"><div class="k">Balance</div><div class="v" id="en-bal"></div></div>
+      </div>
+    </div>
+
+    <div class="block" id="sh-ledger-block" style="display:none">
+      <div class="lbl"><span>Events on this job · <span id="led-count"></span></span>
+        <button class="addbtn" id="addEvent">+ Record event</button></div>
+      <div class="picker" id="picker"></div>
+      <div class="led" id="sh-led"></div>
+    </div>
+
+    <div class="block">
+      <div class="lbl"><span>Collected on the call</span></div>
+      <div class="facts" id="sh-facts"></div>
+      <div class="said-q" id="sh-said"></div>
+    </div>
+
+    <div class="block">
+      <div class="lbl"><span>Follow-ups</span></div>
+      <div class="tl" id="sh-tl"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+  const typeOf   = k => EVENT_TYPES.find(t => t.k === k) || { e:"•", t:k };
+  const catOf = k => PIPELINE.find(t => t.k === k) || { t:"—", c:"st-open", subs:[] };
+  /** Segment follows the status: nothing sets it by hand. */
+  const segOf = p => catOf(p.cat).side;
+  function toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg; el.classList.add("on");
+    clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 2600);
+  }
+  const CHIPS = { customer:"Customer", collab:"Collab", prospect:"Prospect" };
+  const chipOf = s => ({ chip: CHIPS[s] || "Prospect" });
+
+  /** "today", "3 days ago", "2 months ago" — from a days-ago number. */
+  function agoLabel(d) {
+    if (d === 0) return "today";
+    if (d === 1) return "yesterday";
+    if (d < 7)   return d + " days ago";
+    if (d < 30)  return Math.round(d / 7) + (d < 14 ? " week ago" : " weeks ago");
+    const m = Math.round(d / 30);
+    return m + (m === 1 ? " month ago" : " months ago");
+  }
+  function dayHeading(d) {
+    if (d === 0) return "Today";
+    if (d === 1) return "Yesterday";
+    if (d < 7)   return "This week";
+    if (d < 30)  return "This month";
+    return "Earlier";
+  }
+
+  // ---- Tabs ----
+  document.querySelectorAll(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(b => b.classList.remove("on"));
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      btn.classList.add("on");
+      const view = document.getElementById("view-" + btn.dataset.view);
+      view.classList.add("active");
+      view.querySelectorAll(".fade, .row, .pc, .ask, .ev-row, .up, .arow").forEach(el => {
+        el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
+      });
+    });
+  });
+
+  document.getElementById("studio").textContent = CFG.studioName;
+
+  // ---- Calls ----
+  document.getElementById("shooting").textContent = CFG.shootingNow;
+
+  /** A real date, `d` days before today — what the range inputs compare on. */
+  function dateBack(d) {
+    const x = new Date(); x.setHours(0,0,0,0); x.setDate(x.getDate() - d); return x;
+  }
+  const iso = x => x.toISOString().slice(0,10);
+
+  // "This week" and "Last week" are calendar weeks from Sunday, not rolling
+  // 7-day windows — on a Tuesday, "this week" should mean two days, not nine.
+  const todayDow = new Date().getDay();
+  const RANGES = {
+    today:     { label:"today",        test: d => d === 0 },
+    yesterday: { label:"yesterday",    test: d => d === 1 },
+    week:      { label:"this week",    test: d => d <= todayDow },
+    lastweek:  { label:"last week",    test: d => d > todayDow && d <= todayDow + 7 }
+  };
+
+  let callRange = "week";
+
+  function filteredCalls() {
+    if (callRange === "custom") {
+      const f = document.getElementById("dFrom").value;
+      const t = document.getElementById("dTo").value;
+      if (!f || !t) return CFG.people;
+      return CFG.people.filter(p => { const x = iso(dateBack(p.d)); return x >= f && x <= t; });
+    }
+    return CFG.people.filter(p => RANGES[callRange].test(p.d));
+  }
+
+  function drawCalls() {
+    const rows = filteredCalls();
+    document.getElementById("t-ans").textContent   = rows.length;
+    document.getElementById("t-dates").textContent = rows.filter(p => p.out.k === "book").length;
+    document.getElementById("t-enq").textContent   = rows.filter(p => p.out.k === "new").length;
+
+    const head = document.getElementById("callsHead");
+    head.textContent = callRange === "today" ? "While you were shooting"
+      : callRange === "custom" ? "Calls in this range"
+      : "Calls " + RANGES[callRange].label;
+
+    document.getElementById("calls").innerHTML = rows.length ? rows.map((p,i)=>`
+      <div class="row fade" data-i="${CFG.people.indexOf(p)}" style="animation-delay:${i*0.05}s;cursor:pointer">
+        <div class="av" style="background:${p.c}">${p.i}</div>
+        <div class="who"><b>${p.name}</b><div class="num">${p.num}</div>
+          <div class="chips">
+            <span class="chip c-${segOf(p)}">${(chipOf(segOf(p)) || CFG.prospectChip).chip}</span>
+            <span class="chip c-tag">${p.tag}</span>
+            <span class="chip c-${p.out.k}">${p.out.t}</span>
+          </div></div>
+        <div class="time">${p.when}</div>
+      </div>`).join("")
+      : '<div class="empty">No calls in this period.</div>';
+    bindOpen();
+  }
+
+  document.getElementById("callRange").addEventListener("change", e => {
+    callRange = e.target.value;
+    const row = document.getElementById("rangeRow");
+    row.classList.toggle("on", callRange === "custom");
+    if (callRange === "custom") {
+      // Open on the last fortnight, so the demo shows results immediately
+      // instead of two empty boxes.
+      const f = document.getElementById("dFrom"), t = document.getElementById("dTo");
+      if (!f.value) f.value = iso(dateBack(14));
+      if (!t.value) t.value = iso(dateBack(0));
+    }
+    drawCalls();
+  });
+  document.getElementById("dFrom").addEventListener("change", drawCalls);
+  document.getElementById("dTo").addEventListener("change", drawCalls);
+
+  // ---- Dates ----
+  document.getElementById("month").textContent = CFG.month;
+  document.getElementById("peak").textContent = CFG.peakNote;
+  /**
+   * The calendar is a projection of the work, not a list kept beside it.
+   *
+   * Every booked date comes from a job's engagement and every amber date
+   * from a prospect's hold, so converting someone repaints the month on its
+   * own. The only thing stored by hand is blocked time, because no job
+   * produces it.
+   */
+  function dayMap() {
+    const ym = CFG.ym, map = {};
+    const at = d => (map[d] = map[d] || { booked: [], held: [], blocked: null });
+
+    CFG.people.forEach((p, i) => {
+      const en = p.engagement;
+      if (en && en.dates) en.dates.filter(d => d.startsWith(ym))
+        .forEach(d => at(+d.slice(8)).booked.push({ i, name:p.name, slot:en.slot || "Full day" }));
+      if (p.holdDates) p.holdDates.filter(d => d.startsWith(ym))
+        .forEach(d => at(+d.slice(8)).held.push({ i, name:p.name }));
+    });
+    (CFG.blocked || []).filter(b => b.d.startsWith(ym))
+      .forEach(b => at(+b.d.slice(8)).blocked = b.why);
+    return map;
+  }
+
+  function dayState(x) {
+    if (!x) return "open";
+    if (x.blocked) return "blocked";
+    const slots = x.booked.map(b => b.slot);
+    if (slots.includes("Full day") || slots.length > 1) return "booked";
+    if (slots.length === 1) return "partial";      // half the day is still sellable
+    return x.held.length ? "hold" : "open";
+  }
+
+  let MAP = {};
+  function drawCalendar() {
+    MAP = dayMap();
+    let cells = "";
+    for (let p = 0; p < CFG.firstDow; p++) cells += '<div class="day pad"></div>';
+    for (let d = 1; d <= CFG.daysInMonth; d++) {
+      const x = MAP[d], st = dayState(x);
+      const n = x ? x.held.length : 0;
+      cells += `<div class="day ${st}" data-day="${d}">${d}` +
+        (n > 1 ? `<i class="hn">${n}</i>` : "") + `</div>`;
+    }
+    document.getElementById("grid").innerHTML = cells;
+    document.getElementById("dayInfo").innerHTML = "";
+    document.querySelectorAll("#grid .day[data-day]").forEach(el =>
+      el.addEventListener("click", () => {
+        document.querySelectorAll("#grid .day").forEach(x => x.classList.remove("pick"));
+        el.classList.add("pick");
+        describe(+el.dataset.day);
+      }));
+  }
+
+  // Tapping a date says what is actually on it.
+  const MON = CFG.month.slice(0, 3);   // never hardcode the month
+  function describe(d) {
+    const x = MAP[d], box = document.getElementById("dayInfo");
+    if (!x) { box.innerHTML = `<div class="di open">${d} ${MON} · open — both slots free</div>`; return; }
+    if (x.blocked) { box.innerHTML = `<div class="di blocked">${d} ${MON} · blocked — ${x.blocked}</div>`; return; }
+    const lines = [
+      ...x.booked.map(b => `<div class="di booked"><b>${b.slot}</b> ${b.name}</div>`),
+      ...x.held.map(h => `<div class="di hold"><b>Held</b> ${h.name}</div>`)
+    ];
+    const slots = x.booked.map(b => b.slot);
+    if (slots.length === 1 && slots[0] !== "Full day")
+      lines.push(`<div class="di open"><b>${slots[0] === "Morning" ? "Evening" : "Morning"}</b> still free — sellable</div>`);
+    box.innerHTML = lines.join("");
+  }
+  drawCalendar();
+  document.getElementById("asks").innerHTML = CFG.asks.map((a,i)=>`
+    <div class="ask fade" style="animation-delay:${i*0.06}s">
+      <div class="q"><b>${a.name}</b><div class="said">${a.said}</div></div>
+      <div class="verdict v-${a.v.k}">${a.v.t}</div>
+    </div>`).join("");
+
+  // ---- Work: live jobs, finished jobs, and partners ----
+  //
+  // One list, three lenses. A contact is a running job, a finished job, or a
+  // vendor — mutually exclusive, so nothing appears twice and nothing hides.
+  const VIEWS = [
+    { id:"live",     label:"In progress" },
+    { id:"done",     label:"Completed" },
+    { id:"partners", label:"Partners" }
+  ];
+
+  function inView(p, v) {
+    const side = segOf(p);
+    if (v === "partners") return side === "collab";
+    if (side !== "customer") return false;
+    return v === "live" ? p.cat !== "closed" : p.cat === "closed";
+  }
+
+  let active = "live";
+  let statusFilter = "all";
+  let subFilter = "all";
+  document.getElementById("owned").textContent = CFG.ownedCount + " ";
+  document.getElementById("added").textContent = "· " + CFG.addedToday + " added today";
+
+  function drawSegs() {
+    document.getElementById("segs").innerHTML = VIEWS.map(v => {
+      const n = CFG.people.filter(p => inView(p, v.id)).length;
+      return `<button class="seg${v.id===active?' on':''}" data-seg="${v.id}">${v.label}<span class="n">${n}</span></button>`;
+    }).join("");
+    document.querySelectorAll("#segs .seg").forEach(b =>
+      b.addEventListener("click", () => {
+        active = b.dataset.seg; statusFilter = "all"; subFilter = "all";
+        drawSegs(); drawStatusFilter(); drawPeople();
+      }));
+  }
+
+  // Narrowing only helps on live work. On finished jobs and partners the
+  // dropdowns are noise.
+  function drawStatusFilter() {
+    const box = document.getElementById("cfilt");
+    box.style.display = active === "live" ? "" : "none";
+    if (active !== "live") return;
+
+    const csel = document.getElementById("statusFilter");
+    const ssel = document.getElementById("subFilter");
+    const mine = CFG.people.filter(p => inView(p, "live"));
+    const cats = PIPELINE.filter(c => c.side === "customer" && c.k !== "closed");
+
+    csel.style.display = "";
+    const n = {}; mine.forEach(p => n[p.cat] = (n[p.cat]||0)+1);
+    csel.innerHTML = `<option value="all">All stages · ${mine.length}</option>` +
+      cats.map(c => `<option value="${c.k}">${c.t} · ${n[c.k]||0}</option>`).join("");
+    csel.value = statusFilter;
+
+    const only = statusFilter !== "all" ? catOf(statusFilter) : null;
+    if (!only) {
+      ssel.innerHTML = '<option value="all">All</option>';
+      ssel.disabled = true; ssel.value = "all";
+    } else {
+      const pool = mine.filter(p => p.cat === only.k);
+      const sn = {}; pool.forEach(p => sn[p.sub] = (sn[p.sub]||0)+1);
+      ssel.disabled = false;
+      ssel.innerHTML = `<option value="all">All · ${pool.length}</option>` +
+        only.subs.map(x => `<option value="${x}">${x} · ${sn[x]||0}</option>`).join("");
+      ssel.value = subFilter;
+    }
+  }
+
+  function drawPeople() {
+    let rows = CFG.people.filter(p => inView(p, active));
+    if (active === "live") {
+      if (statusFilter !== "all") rows = rows.filter(p => p.cat === statusFilter);
+      if (subFilter !== "all")    rows = rows.filter(p => p.sub === subFilter);
+      // Longest-waiting first — the job nobody has touched is the point.
+      rows = rows.slice().sort((a, b) => (b.since || 0) - (a.since || 0));
+    }
+
+    const label = VIEWS.find(v => v.id === active).label.toLowerCase();
+    document.getElementById("count").textContent = rows.length + " " + label + " ";
+
+    document.getElementById("people").innerHTML = rows.length ? rows.map(p => {
+      const partner = active === "partners";
+      const stale = active === "live" && (p.since || 0) >= 14;
+      return `<div class="job fade${active === "done" ? " done" : ""}" data-i="${CFG.people.indexOf(p)}">
+        <div class="av" style="background:${p.c}">${p.i}</div>
+        <div class="jt">
+          <b>${p.name}</b>
+          <div class="jsub">${partner ? p.tag : (p.engagement ? p.engagement.title : p.num)}</div>
+          <span class="chip ${catOf(p.cat).c}">${catOf(p.cat).t} · ${p.sub}</span>
+        </div>
+        ${partner
+          ? `<div class="jage"><b>${p.out.t.split(" ")[0]}</b><span>weddings sent</span></div>`
+          : `<div class="jage${stale ? " stale" : ""}"><b>${ageLabel(p.since || 0)}</b><span>in this state</span></div>`}
+      </div>`;
+    }).join("")
+      : `<div class="empty">Nothing here.</div>`;
+    bindOpen();
+  }
+
+  document.getElementById("statusFilter").addEventListener("change", e => {
+    statusFilter = e.target.value; subFilter = "all";
+    drawStatusFilter(); drawPeople();
+  });
+  document.getElementById("subFilter").addEventListener("change", e => {
+    subFilter = e.target.value; drawPeople();
+  });
+
+  // ---- Activity: every job, in progress or completed ----
+  //
+  // One question per row: where is it, and how long has it been there. A job
+  // sitting three weeks in one state is the thing worth seeing, and a
+  // chronological feed buries exactly that.
+  function ageLabel(d) {
+    if (!d)      return "today";
+    if (d === 1) return "1 day";
+    if (d < 30)  return d + " days";
+    const m = Math.round(d / 30);
+    return m + (m === 1 ? " month" : " months");
+  }
+
+
+  // ---- Detail sheet ----
+  const sheet = document.getElementById("sheet"), scrim = document.getElementById("scrim");
+  let openIdx = null;
+
+  function drawLedger() {
+    const p = CFG.people[openIdx];
+    const evs = p.events || [];
+    document.getElementById("led-count").textContent = evs.length;
+    document.getElementById("sh-led").innerHTML = evs.map((e,i) => {
+      const t = typeOf(e.k);
+      return `<div class="li${e.fresh?" fresh":""}">
+        <div class="ei">${t.e}</div>
+        <div class="lt"><b>${e.title || t.t}</b><div class="note">${e.note}</div></div>
+        <div class="ago2">${agoLabel(e.d)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  function openSheet(i) {
+    openIdx = i;
+    const p = CFG.people[i];
+    const av = document.getElementById("sh-av");
+    av.style.background = p.c; av.textContent = p.i;
+    document.getElementById("sh-name").textContent = p.name;
+    document.getElementById("sh-num").textContent = p.num;
+
+    // Engagement + ledger only exist on a booked job.
+    paintEngagement(p);
+    document.getElementById("picker").classList.remove("on");
+    drawState();
+
+    document.getElementById("sh-facts").innerHTML = p.facts.map(([k,v,mod])=>
+      `<div class="fact${mod===1?' wide':mod==='money'?' money':''}"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+    document.getElementById("sh-said").textContent = p.said;
+    document.getElementById("sh-tl").innerHTML = p.timeline.map(e=>`
+      <div class="ev ${e.k}">
+        <div class="hd"><span class="by">${e.k==="sara"?"Sara":e.k==="you"?"You":"Next"}</span><span class="ago">${e.ago}</span></div>
+        <div class="what">${e.what}</div>
+      </div>`).join("");
+
+    sheet.classList.add("on"); scrim.classList.add("on"); sheet.scrollTop = 0;
+  }
+  function close(){ sheet.classList.remove("on"); scrim.classList.remove("on"); }
+  function bindOpen(){
+    document.querySelectorAll("[data-i]").forEach(el => {
+      if (el.dataset.bound) return;
+      el.dataset.bound = "1";
+      el.addEventListener("click", () => openSheet(Number(el.dataset.i)));
+    });
+  }
+  document.getElementById("sh-x").addEventListener("click", close);
+  scrim.addEventListener("click", close);
+
+  // ---- Status: category + subcategory, with an optional note ----
+  function drawState() {
+    const p = CFG.people[openIdx];
+    const card = document.getElementById("sh-state");
+    card.style.display = "";
+
+    const cat = catOf(p.cat);
+    document.getElementById("st-k").textContent = "Status";
+    const chip = document.getElementById("st-v");
+    chip.className = "vchip " + cat.c;
+    chip.textContent = cat.t + " · " + p.sub;
+
+    document.getElementById("st-btn").textContent = "Update";
+    document.getElementById("st-btn").className = "cta ghost";
+    document.getElementById("st-hint").textContent =
+      "Pick where the job stands. Moving into Booked or beyond turns this contact into a customer.";
+
+    const csel = document.getElementById("st-cat");
+    csel.innerHTML = PIPELINE.map(c => `<option value="${c.k}">${c.t}</option>`).join("");
+    csel.value = p.cat;
+    fillSubs(p.sub);
+    document.getElementById("st-note").value = "";
+    document.getElementById("stpick").classList.remove("on");
+  }
+
+  function fillSubs(pick) {
+    const c = catOf(document.getElementById("st-cat").value);
+    const ssel = document.getElementById("st-sub");
+    ssel.innerHTML = c.subs.map(x => `<option value="${x}">${x}</option>`).join("");
+    if (pick && c.subs.includes(pick)) ssel.value = pick;
+  }
+  document.getElementById("st-cat").addEventListener("change", () => fillSubs());
+
+  document.getElementById("st-btn").addEventListener("click", () =>
+    document.getElementById("stpick").classList.toggle("on"));
+
+  /** Build an engagement from what Sara already collected on the call. */
+  function engagementFrom(p) {
+    const get = k => (p.facts.find(f => f[0] === k) || [])[1] || "—";
+    // The dates they were holding become the dates they have booked.
+    return { title: get("Type"), date: get("Date"), venue: get("Venue"),
+             dates: (p.holdDates || []).slice(), slot: "Full day",
+             value: get("Budget"), paid: "₹0", balance: get("Budget"), stage: "Booked" };
+  }
+
+  function paintEngagement(p) {
+    const has = Boolean(p.engagement);
+    document.getElementById("sh-engage").style.display = has ? "" : "none";
+    document.getElementById("sh-ledger-block").style.display = has ? "" : "none";
+    if (!has) return;
+    const en = p.engagement;
+    document.getElementById("en-title").textContent = en.title;
+    document.getElementById("en-sub").textContent = en.date + " · " + en.venue + " · " + en.stage;
+    document.getElementById("en-val").textContent  = en.value;
+    document.getElementById("en-paid").textContent = en.paid;
+    document.getElementById("en-bal").textContent  = en.balance;
+    drawLedger();
+  }
+
+  document.getElementById("st-submit").addEventListener("click", () => {
+    const p = CFG.people[openIdx];
+    const wasCustomer = segOf(p) === "customer";
+    const wasCollab   = segOf(p) === "collab";
+    p.cat = document.getElementById("st-cat").value;
+    p.sub = document.getElementById("st-sub").value;
+    const note = document.getElementById("st-note").value.trim();
+    const cat = catOf(p.cat);
+    p.since = 0;   // the clock restarts on every move
+
+    // Crossing into the customer side gives the job its engagement and its
+    // first activity record.
+    if (!wasCustomer && cat.side === "customer") {
+      p.events = p.events || [];
+      p.engagement = p.engagement || engagementFrom(p);
+      delete p.holdDates;          // it is a booking now, not a hold
+      toast(p.name + " is now a customer");
+    } else if (cat.side === "collab" && !wasCollab) {
+      toast(p.name + " moved to Collaborations");
+    } else {
+      toast("Status updated · " + cat.t);
+    }
+    if (p.engagement) p.engagement.stage = cat.t + " · " + p.sub;
+
+    // The status change is itself a ledger entry, so history comes free.
+    if (p.events) {
+      p.events.forEach(e => delete e.fresh);
+      p.events.unshift({ k:"status", d:0, fresh:true,
+        title: cat.t + " · " + p.sub,
+        note: note || "Status set to " + cat.t + " · " + p.sub });
+    }
+
+    p.out = cat.k === "closed" && p.sub.startsWith("Lost")
+      ? { t:"Lost", k:"info" } : { t:cat.t, k: cat.side === "customer" ? "book" : "new" };
+
+    drawState(); paintEngagement(p);
+    drawCalls(); drawSegs(); drawStatusFilter(); drawPeople(); drawCalendar();
+    persist();
+  });
+
+  // ---- Record an event by hand ----
+  document.getElementById("picker").innerHTML = EVENT_TYPES.map(t =>
+    `<button class="pick" data-k="${t.k}"><span class="pe">${t.e}</span>${t.t}</button>`).join("");
+  document.getElementById("addEvent").addEventListener("click", () =>
+    document.getElementById("picker").classList.toggle("on"));
+  document.querySelectorAll(".pick").forEach(b => b.addEventListener("click", () => {
+    const p = CFG.people[openIdx];
+    p.events.forEach(e => delete e.fresh);
+    p.events.unshift({ k: b.dataset.k, d: 0, note: "Recorded by you just now", fresh: true });
+    document.getElementById("picker").classList.remove("on");
+    drawLedger(); drawSegs(); drawPeople();
+    persist();
+  }));
+
+  drawCalls(); drawSegs(); drawStatusFilter(); drawPeople(); bindOpen();
+
+  // ---- Persistence ----
+  //
+  // The page is the record: whatever gets tapped through in a demo is still
+  // there when the photographer opens the link again. Opened as a plain
+  // file there is no `claude` object, so this block does nothing and the
+  // mockup behaves exactly as it did before.
+  let DB = null, writing = null;
+
+  function redrawAll() {
+    drawCalls(); drawSegs(); drawStatusFilter(); drawPeople(); drawCalendar();
+  }
+
+  async function persist() {
+    if (!DB) return;
+    // One write at a time per document; a burst of taps collapses into the
+    // next write rather than queueing a stack of them.
+    if (writing) { writing.again = true; return; }
+    const job = writing = { again: false };
+    try {
+      do {
+        job.again = false;
+        await DB.doc("state/app").set({ people: CFG.people });
+      } while (job.again);
+    } catch (e) {
+      // A read-only viewer, or a transient failure. The page keeps working.
+    } finally {
+      writing = null;
+    }
+  }
+
+  (async () => {
+    if (!window.claude || !window.claude.use) return;
+    DB = await window.claude.use("db");
+    if (!DB) return;
+    try {
+      const snap = await DB.doc("state/app").get();
+      const saved = snap.exists ? snap.data() : null;
+      if (saved && Array.isArray(saved.people) && saved.people.length) {
+        CFG.people = saved.people;
+        redrawAll();
+      }
+    } catch (e) {
+      // Nothing saved yet, or unreadable — fall through to the seeded demo.
+    }
+    const btn = document.getElementById("resetDemo");
+    btn.style.display = "";
+    btn.addEventListener("click", async () => {
+      btn.textContent = "Resetting…";
+      try { await DB.doc("state/app").delete(); } catch (e) {}
+      location.reload();
+    });
+  })();
+</script>
