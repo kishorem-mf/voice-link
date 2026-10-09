@@ -185,3 +185,84 @@ moves. See `src/crm/aws-env.ts`.
   real-date decision above.
 - **Multi-user.** Every row is the one operator's. Adding an `owner` field now
   costs nothing and avoids a migration later, so it is in the profile item.
+
+---
+
+## Scaling: what to change, and when
+
+Measured 2026-10-05 at 173 prospects.
+
+### Where it stands
+
+| | |
+|---|---|
+| Rows in the `new` tray | 173 |
+| Payload per list call | 31 KB (was 108 KB before the projection) |
+| Read cost per page load | ~27 RRU ≈ $0.0000034 |
+| At 200 page loads/day | **~25¢ a year** |
+
+The list fetches a whole tray and the browser draws a page of it (50 by
+default, adjustable). Search filters that in-memory set.
+
+### The cost is not the constraint — the payload is
+
+| rows | payload/load | $/load | feel |
+|---|---|---|---|
+| 173 | 31 KB | $0.000003 | instant |
+| 1,000 | 180 KB | $0.00002 | fine |
+| 10,000 | 1.8 MB | $0.0002 | **breaks** |
+| 1,000,000 | 180 MB | $0.02 | never loads |
+
+Even at a million rows the bill is a few dollars a day. The page, however,
+stops loading about **100× earlier**. Judge this design by load time, not by
+the AWS invoice.
+
+### Three gaps, in the order they bite
+
+**1. Tray counts are O(n).** `pipeline()` → `countTray()` uses
+`Select: "COUNT"`, which does *not* count cheaply: DynamoDB bills for every
+byte scanned to produce the number, so counting a tray costs the same reads as
+fetching it. At scale the fix is a maintained counter — an atomic `ADD` on a
+counters item at each status transition — not a better query. Not worth the
+write-path complexity yet: a missed increment is permanently wrong counts, a
+correctness risk traded for a cosmetic gain.
+
+**2. The list fetches the whole tray.** The fix is cursor pagination, and
+DynamoDB hands it to you: `LastEvaluatedKey` *is* the cursor. Return N rows
+plus an opaque cursor; "Load more" sends it back.
+
+**3. Search is client-side**, which only works because the client holds
+everything.
+
+### The trap: 2 and 3 must ship together
+
+Paginating the fetch while search still filters in the browser silently
+rebuilds the bug fixed on 2026-10-05, when `listProspects` capped at 100 and
+hid 73 prospects: search finds only what has been loaded, so a prospect on
+page 4 looks like they were never imported. The failure is invisible and you
+meet it mid-dial.
+
+Server-side search is the harder half. Exact lookups are already solved — the
+`PHONE#` and `IG#` pointers are O(1). Name search needs a GSI on a normalised
+name queried with `begins_with`. Anything fuzzier is an OpenSearch
+conversation, and nothing here justifies one.
+
+### Trigger points
+
+- **A tray passes ~2,000** → cursor pagination *and* server-side name search,
+  together, never one alone.
+- **The dashboard feels slow** → maintained tray counters.
+- **Fuzzy or multi-field search is genuinely needed** → only then, a search
+  service.
+
+Until then this is the right shape. Leads arrive from Instagram accounts
+followed by hand, and one caller places perhaps 20 calls a day — roughly 5,000
+a year. The million-row design solves a problem this business cannot generate.
+
+### Already done
+
+`LIST_FIELDS` in `src/crm/store.ts` projects the list query down to what the
+Prospects tab draws and searches. The Instagram bio alone was 37% of the
+payload and is never shown; the projection cut the response by **71%**.
+Callers that need the full row — the bio backfill, the Database tab, the
+CLI — simply don't pass it.

@@ -345,50 +345,127 @@ export async function findByInstagram(url: string): Promise<Prospect | null> {
  *
  * A query on the status index, not a scan: the old version read every row in
  * the table — including every call — on each page load.
+ *
+ * Pages to the end unless `limit` says otherwise. DynamoDB stops a query at
+ * 1MB whatever you ask for, so a single call cannot be trusted to have
+ * returned the whole tray — this used to cap silently at 100, which hid 73
+ * prospects from the list and, worse, from search.
  */
+/**
+ * What the Prospects tab draws and searches on — nothing else.
+ *
+ * A prospect row carries its Instagram bio, which is over a third of the
+ * payload and is never rendered or searched in the list. Asking for the
+ * whole row ships it anyway. Callers that need the bio (the bio backfill,
+ * the Database tab) simply don't pass this.
+ */
+export const LIST_FIELDS = [
+  "prospectId",
+  "businessName",
+  "phone",
+  "email",
+  "instagramUrl",
+  "city",
+  "score",
+  "followers",
+  "followUpDue",
+  "lastContactedAt",
+  "openedAt",
+] as const;
+
 export async function listProspects(
   status: ProspectStatus = "open",
-  limit = 100,
+  limit?: number,
+  fields?: readonly string[],
 ): Promise<Prospect[]> {
-  const r = await doc().send(
-    new QueryCommand({
-      TableName: TABLE,
-      IndexName: STATUS_INDEX,
-      KeyConditionExpression: "#s = :s",
-      ExpressionAttributeNames: { "#s": "status" },
-      ExpressionAttributeValues: { ":s": status },
-      Limit: limit,
-    }),
-  );
-  return (r.Items ?? []) as Prospect[];
+  const out: Prospect[] = [];
+  let startKey: Record<string, unknown> | undefined;
+
+  // Alias every projected field. Several plausible column names ("status",
+  // "source", "name") are DynamoDB reserved words, and a projection that
+  // happens to hit one fails at query time rather than at review time.
+  const projection = fields?.length
+    ? {
+        ProjectionExpression: fields.map((_, i) => `#p${i}`).join(", "),
+        names: Object.fromEntries(fields.map((f, i) => [`#p${i}`, f])),
+      }
+    : null;
+
+  do {
+    const r = await doc().send(
+      new QueryCommand({
+        TableName: TABLE,
+        IndexName: STATUS_INDEX,
+        KeyConditionExpression: "#s = :s",
+        ExpressionAttributeNames: { "#s": "status", ...(projection?.names ?? {}) },
+        ExpressionAttributeValues: { ":s": status },
+        ...(projection ? { ProjectionExpression: projection.ProjectionExpression } : {}),
+        ...(limit ? { Limit: limit - out.length } : {}),
+        ExclusiveStartKey: startKey as never,
+      }),
+    );
+    out.push(...((r.Items ?? []) as Prospect[]));
+    startKey = r.LastEvaluatedKey;
+  } while (startKey && (limit === undefined || out.length < limit));
+
+  return limit ? out.slice(0, limit) : out;
 }
 
 const TRAYS: ProspectStatus[] = ["new", "open", "won", "lost"];
 
 /** Every prospect across all trays, for search and export. */
 export async function listAllProspects(): Promise<Prospect[]> {
-  const trays = await Promise.all(TRAYS.map((s) => listProspects(s)));
+  const trays = await Promise.all(TRAYS.map((s) => listProspects(s, undefined, LIST_FIELDS)));
   return trays.flat();
+}
+
+/** How many prospects sit in a tray. Counts rows without fetching them. */
+async function countTray(status: ProspectStatus): Promise<number> {
+  let n = 0;
+  let startKey: Record<string, unknown> | undefined;
+  do {
+    const r = await doc().send(
+      new QueryCommand({
+        TableName: TABLE,
+        IndexName: STATUS_INDEX,
+        KeyConditionExpression: "#s = :s",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: { ":s": status },
+        Select: "COUNT",
+        ExclusiveStartKey: startKey as never,
+      }),
+    );
+    n += r.Count ?? 0;
+    startKey = r.LastEvaluatedKey;
+  } while (startKey);
+  return n;
 }
 
 /** How many prospects sit in each tray. */
 export async function pipeline(): Promise<Record<ProspectStatus, number>> {
-  const [fresh, open, won, lost] = await Promise.all(TRAYS.map((s) => listProspects(s)));
-  return { new: fresh.length, open: open.length, won: won.length, lost: lost.length };
+  const [fresh, open, won, lost] = await Promise.all(TRAYS.map(countTray));
+  return { new: fresh, open, won, lost };
 }
 
 /** Live prospects whose follow-up is due on or before `date` (default today). */
 export async function dueBy(date = today()): Promise<Prospect[]> {
-  const r = await doc().send(
-    new QueryCommand({
-      TableName: TABLE,
-      IndexName: STATUS_INDEX,
-      KeyConditionExpression: "#s = :s AND followUpSort <= :d",
-      ExpressionAttributeNames: { "#s": "status" },
-      ExpressionAttributeValues: { ":s": "open", ":d": date },
-    }),
-  );
-  return (r.Items ?? []) as Prospect[];
+  const out: Prospect[] = [];
+  let startKey: Record<string, unknown> | undefined;
+  do {
+    const r = await doc().send(
+      new QueryCommand({
+        TableName: TABLE,
+        IndexName: STATUS_INDEX,
+        KeyConditionExpression: "#s = :s AND followUpSort <= :d",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: { ":s": "open", ":d": date },
+        ExclusiveStartKey: startKey as never,
+      }),
+    );
+    out.push(...((r.Items ?? []) as Prospect[]));
+    startKey = r.LastEvaluatedKey;
+  } while (startKey);
+  return out;
 }
 
 /**

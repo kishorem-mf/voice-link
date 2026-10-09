@@ -38,6 +38,7 @@ import {
 import { profileCredentials } from "./notify/routing.js";
 import {
   listProspects,
+  LIST_FIELDS,
   listAllProspects,
   pipeline,
   recentActivity,
@@ -167,7 +168,7 @@ async function resolveProspect(
   // Name search last: it is the only one that has to read a tray.
   const needle = v.toLowerCase();
   for (const status of ["new", "open", "won", "lost"] as const) {
-    const hit = (await listProspects(status, 500)).find((p) =>
+    const hit = (await listProspects(status, 500, LIST_FIELDS)).find((p) =>
       (p.businessName ?? "").toLowerCase().includes(needle),
     );
     if (hit) return { prospect: hit, how: `name match in ${status}` };
@@ -475,7 +476,7 @@ export function createApp() {
       res.json(
         status === "all"
           ? await listAllProspects()
-          : await listProspects(status as ProspectStatus),
+          : await listProspects(status as ProspectStatus, undefined, LIST_FIELDS),
       );
     } catch (err) {
       res.status(crmConfigured() ? 502 : 400).json({ error: (err as Error).message });
