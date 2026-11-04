@@ -1,4 +1,5 @@
-import { getRetellApiKey, getRetellBaseUrl, mask } from "./config.js";
+import { getRetellApiKey, mask } from "./config.js";
+import { listAgents, listPhoneNumbers } from "./lists.js";
 
 /**
  * Retell client + auth check (parallel to the ElevenLabs client).
@@ -23,38 +24,27 @@ export interface RetellPingResult {
   phoneNumbers: RetellPhoneSummary[];
 }
 
-async function get<T>(path: string, apiKey: string): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${getRetellBaseUrl()}${path}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-  } catch (err) {
-    throw new Error(`Network error reaching Retell (${path}): ${(err as Error).message}`);
-  }
-  const text = await res.text().catch(() => "");
-  if (!res.ok) {
-    const hint = res.status === 401 ? " — API key rejected. Check RETELL_API_KEY." : "";
-    throw new Error(`Retell ${res.status} on ${path}${hint} ${text}`.trim());
-  }
-  return (text ? JSON.parse(text) : {}) as T;
-}
-
 /** Validate the key and list agents + phone numbers. */
-export async function ping(apiKey: string = getRetellApiKey()): Promise<RetellPingResult> {
+export async function ping(): Promise<RetellPingResult> {
   const [agentsRaw, phonesRaw] = await Promise.all([
-    get<any[]>("/list-agents", apiKey),
-    get<any[]>("/list-phone-numbers", apiKey),
+    listAgents<any>(),
+    listPhoneNumbers<any>(),
   ]);
 
-  const agents: RetellAgentSummary[] = (agentsRaw ?? []).map((a) => ({
+  const agents: RetellAgentSummary[] = agentsRaw.map((a) => ({
     agentId: a.agent_id,
     name: a.agent_name ?? "",
   }));
-  const phoneNumbers: RetellPhoneSummary[] = (phonesRaw ?? []).map((p) => ({
+  // A number carries WEIGHTED LISTS of agents, not one id each — Retell
+  // supports splitting traffic across agents. Every profile here binds
+  // exactly one, so the first entry is the binding; reading the long-gone
+  // `inbound_agent_id` is what made this print "(unset)" for every number.
+  const firstAgent = (list: unknown): string | undefined =>
+    (Array.isArray(list) ? list[0]?.agent_id : undefined) || undefined;
+  const phoneNumbers: RetellPhoneSummary[] = phonesRaw.map((p) => ({
     phoneNumber: p.phone_number,
-    outboundAgentId: p.outbound_agent_id ?? undefined,
-    inboundAgentId: p.inbound_agent_id ?? undefined,
+    outboundAgentId: firstAgent(p.outbound_agents) ?? p.outbound_agent_id ?? undefined,
+    inboundAgentId: firstAgent(p.inbound_agents) ?? p.inbound_agent_id ?? undefined,
   }));
 
   return { agents, phoneNumbers };
@@ -65,7 +55,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   try {
     const apiKey = getRetellApiKey();
     console.log(`🔑 Using Retell key ${mask(apiKey)} — contacting Retell…`);
-    const { agents, phoneNumbers } = await ping(apiKey);
+    const { agents, phoneNumbers } = await ping();
     console.log("✅ Auth OK.\n");
 
     console.log(`Agents (${agents.length}):`);

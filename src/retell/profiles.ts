@@ -16,12 +16,27 @@ import { dirname, resolve } from "node:path";
 export interface VoiceLinkProfile {
   id: string;
   name: string;
-  /** The DID, E.164 (e.g. +919429391391). This becomes RETELL_FROM_NUMBER. */
+  /**
+   * The DID, E.164 (e.g. +919429391391). This becomes RETELL_FROM_NUMBER.
+   *
+   * Empty on a client whose number has not been bought yet. Always a string
+   * so every read site stays simple; `placeCall()` is the one place that
+   * cares, because outbound is the only thing a missing DID breaks.
+   */
   fromNumber: string;
   /** VoiceLink SIP termination URI for this account's trunk, e.g. "app.voicelink.co.in:3300". */
   terminationUri: string;
   transport?: string; // default "TCP"
   techPrefix?: string;
+  /**
+   * How the destination number is written when dialling out on this trunk.
+   *
+   * "national" sends the bare 10 digits; "e164" (the default) sends it as
+   * given. Which one a trunk wants depends on whether VoiceLink applies the
+   * tech prefix and country code itself — preset BOT providers do, "Custom"
+   * ones do not. See formatDialNumber() in call.ts.
+   */
+  dialFormat?: "e164" | "national";
 
   // ---- Client identity -----------------------------------------------------
   /** The client's trading name, e.g. "Dreamframe Studios" — spoken by the agent. */
@@ -57,6 +72,20 @@ export interface VoiceLinkProfile {
   telegramBotToken?: string;
   /** Chat or group id the alerts are delivered to. Negative ids are groups. */
   telegramChatId?: string;
+
+  /**
+   * The CRM prospect this client IS — the photographer you won, not one of
+   * their callers.
+   *
+   * Held on the profile rather than on the prospect because a profile is the
+   * client record: it already owns the DID, the agent pair and the alert bot.
+   * The prospect side has `owner`, which answers a different question (which
+   * client does this ROW belong to), so the two never contend. A won
+   * photographer's own row stays an unowned lead of yours while their callers
+   * carry `owner` — and the link lets the app read their city, trade and
+   * mobile without copying any of it.
+   */
+  prospectId?: string;
 
   /**
    * Marks a throwaway profile used for sales demos.
@@ -139,7 +168,9 @@ export function setActiveProfile(id: string): VoiceLinkProfile {
 }
 
 /** Add a new profile. `id` is slugified from `name` if not given. */
-export function addProfile(input: Omit<VoiceLinkProfile, "id"> & { id?: string }): VoiceLinkProfile {
+export function addProfile(
+  input: Omit<VoiceLinkProfile, "id" | "fromNumber"> & { id?: string; fromNumber?: string },
+): VoiceLinkProfile {
   const data = load();
   const id =
     input.id?.trim() ||
@@ -154,14 +185,23 @@ export function addProfile(input: Omit<VoiceLinkProfile, "id"> & { id?: string }
   const profile: VoiceLinkProfile = {
     id,
     name: input.name,
-    fromNumber: input.fromNumber,
+    // Empty until the client's DID is bought. Inbound routing never consults
+    // the active profile, so a numberless profile is safe to create and
+    // select; only dialling needs the number, and placeCall() says so.
+    fromNumber: input.fromNumber ?? "",
     terminationUri: input.terminationUri,
     transport: input.transport || "TCP",
     techPrefix: input.techPrefix ?? "",
+    dialFormat: input.dialFormat,
     businessName: input.businessName ?? input.name,
     businessType: input.businessType ?? "general",
     outboundAgentId: input.outboundAgentId,
     inboundAgentId: input.inboundAgentId,
+    prospectId: input.prospectId,
+    // Built field-by-field rather than spread, so anything added to the
+    // interface has to be listed here or it is silently dropped on create —
+    // which is exactly what happened to isDemo.
+    isDemo: input.isDemo,
   };
   data.profiles.push(profile);
   save(data);

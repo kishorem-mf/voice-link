@@ -22,6 +22,7 @@ export interface RetellConfig {
   agentId: string;
   /** The VoiceLink DID imported into Retell, E.164 — the call's from_number. */
   fromNumber: string;
+  dialFormat: "e164" | "national";
   /** Optional SIP tech prefix prepended to the dialed number. Empty = plain. */
   techPrefix: string;
 }
@@ -58,6 +59,7 @@ export function getRetellConfig(): RetellConfig {
     agentId: getRetellOutboundAgentId(),
     fromNumber: profile.fromNumber,
     techPrefix: profile.techPrefix ?? "",
+    dialFormat: profile.dialFormat ?? "e164",
   };
 }
 
@@ -91,6 +93,49 @@ export function getRetellAgentIds(): string[] {
   const inbound = getRetellInboundAgentId();
   if (inbound && inbound !== ids[0]) ids.push(inbound);
   return ids;
+}
+
+/**
+ * Agent ids for the active profile, or `[]` when it has none.
+ *
+ * A client created before its DID is bought has no agents yet, and that is a
+ * legitimate state, not an error: it has simply never been provisioned. Reads
+ * that can honestly answer "nothing" for such a client — its call list, its
+ * stats, the UI header — use this. Operations that genuinely cannot proceed
+ * without an agent, such as placing a call or syncing agent settings, keep
+ * using getRetellAgentIds() and fail loudly.
+ */
+export function tryGetRetellAgentIds(): string[] {
+  try {
+    return getRetellAgentIds();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Why the active profile cannot place a call yet, or null when it can.
+ *
+ * Phrased for the operator rather than the developer: the two things that
+ * stop a new client dialling are a DID that has not been bought and agents
+ * that have not been provisioned, and both are fixed in Settings → Clients.
+ */
+export function outboundBlocker(): string | null {
+  const profile = getActiveProfile();
+  const who = profile.businessName || profile.name;
+  if (!profile.fromNumber.trim()) {
+    return (
+      `${who} has no phone number assigned yet, so there is nothing to call from. ` +
+      `Add its DID in Settings → Clients, then Import and Provision it.`
+    );
+  }
+  if (tryGetRetellAgentIds().length === 0) {
+    return (
+      `${who} has no Retell agents yet. Run Provision in Settings → Clients to create ` +
+      `its agent pair and bind ${profile.fromNumber} to them.`
+    );
+  }
+  return null;
 }
 
 /** Mask a secret for safe logging. */

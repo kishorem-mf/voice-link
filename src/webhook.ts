@@ -12,6 +12,8 @@ import {
   getRetellAgentIds,
   getRetellInboundAgentId,
   getRetellOutboundAgentId,
+  getRetellBaseUrl,
+  outboundBlocker,
 } from "./retell/config.js";
 import { placeCall } from "./retell/call.js";
 import {
@@ -214,23 +216,44 @@ export function createApp() {
 
   // ---- Web API (consumed by the React app) --------------------------------
 
-  /** Safe config for the UI header — never exposes the API key. */
+  /**
+   * Safe config for the UI header — never exposes the API key.
+   *
+   * Degrades rather than failing. A client created before its DID is bought
+   * has no number and no agents, and getRetellConfig() throws for it; letting
+   * that 400 would blank the whole header the moment such a client is
+   * selected, hiding even WHICH client is on screen. So identity is always
+   * returned, and the parts that need provisioning come back empty with
+   * `outboundBlocker` saying what is missing.
+   */
   app.get("/api/config", (_req: Request, res: Response) => {
     try {
-      const c = getRetellConfig();
       const active = listProfiles().find((p) => p.id === getActiveProfileId());
+      let agentId = "";
+      let fromNumber = "";
+      let techPrefix = "";
+      try {
+        const c = getRetellConfig();
+        agentId = c.agentId;
+        fromNumber = c.fromNumber;
+        techPrefix = c.techPrefix;
+      } catch {
+        /* unprovisioned client — reported via outboundBlocker below */
+      }
       res.json({
         provider: "retell",
-        agentId: c.agentId,
-        phoneNumberId: c.fromNumber,
-        baseUrl: c.baseUrl,
-        techPrefix: c.techPrefix || null,
+        agentId,
+        phoneNumberId: fromNumber,
+        baseUrl: getRetellBaseUrl(),
+        techPrefix: techPrefix || null,
         profileId: active?.id,
         profileName: active?.name,
         // The trading name — what the agent says and what the UI should show
         // when explaining whose data is on screen.
         businessName: active?.businessName || active?.name,
         isDemo: Boolean(active?.isDemo),
+        // Null when this client can place calls; otherwise what to do first.
+        outboundBlocker: outboundBlocker(),
       });
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });
@@ -365,20 +388,31 @@ export function createApp() {
 
   /** Add a new VoiceLink profile (one client). */
   app.post("/api/profiles", (req: Request, res: Response) => {
-    const { name, fromNumber, terminationUri, transport, techPrefix, businessName, businessType } =
-      req.body ?? {};
-    if (!name?.trim() || !fromNumber?.trim() || !terminationUri?.trim()) {
-      return res.status(400).json({ error: "name, fromNumber, and terminationUri are required" });
+    const {
+      name,
+      fromNumber,
+      terminationUri,
+      transport,
+      techPrefix,
+      businessName,
+      businessType,
+      isDemo,
+    } = req.body ?? {};
+    // fromNumber is optional: a client can be set up before its DID is
+    // bought, then given the number later.
+    if (!name?.trim() || !terminationUri?.trim()) {
+      return res.status(400).json({ error: "name and terminationUri are required" });
     }
     try {
       const p = addProfile({
         name: name.trim(),
-        fromNumber: fromNumber.trim(),
+        fromNumber: fromNumber?.trim() || "",
         terminationUri: terminationUri.trim(),
         transport: transport?.trim(),
         techPrefix: techPrefix?.trim(),
         businessName: businessName?.trim() || name.trim(),
         businessType: businessType?.trim() || "general",
+        isDemo: isDemo === true || undefined,
       });
       res.json(p);
     } catch (err) {
@@ -394,12 +428,32 @@ export function createApp() {
   /** Edit a profile's client identity. Body: { businessName?, businessType? }. */
   app.patch("/api/profiles/:id", (req: Request, res: Response) => {
     const id = String(req.params.id);
-    const { businessName, businessType } = req.body ?? {};
-    const patch: Record<string, string> = {};
+    const { businessName, businessType, fromNumber, techPrefix, dialFormat, prospectId } =
+      req.body ?? {};
+    const patch: Record<string, string | undefined> = {};
     if (typeof businessName === "string") patch.businessName = businessName.trim();
     if (typeof businessType === "string") patch.businessType = businessType.trim();
+    if (typeof fromNumber === "string") patch.fromNumber = fromNumber.trim();
+    // "" is a real value here — most trunks need no prefix at all.
+    if (typeof techPrefix === "string") patch.techPrefix = techPrefix.trim();
+    if (dialFormat === "e164" || dialFormat === "national") patch.dialFormat = dialFormat;
+    // "" unlinks; a value links. Undefined leaves the link alone.
+    if (typeof prospectId === "string") patch.prospectId = prospectId.trim() || undefined;
     if (!Object.keys(patch).length) return res.status(400).json({ error: "nothing to update" });
     try {
+      // One prospect, one client. Two clients claiming the same photographer
+      // would make "whose calls are these" unanswerable, so refuse rather
+      // than let the second link silently win.
+      if (patch.prospectId) {
+        const taken = listProfiles().find(
+          (p) => p.id !== id && p.prospectId === patch.prospectId,
+        );
+        if (taken) {
+          return res.status(409).json({
+            error: `That prospect is already linked to "${taken.businessName || taken.name}". Unlink it there first.`,
+          });
+        }
+      }
       res.json(updateProfile(id, patch));
     } catch (err) {
       res.status(400).json({ error: (err as Error).message });

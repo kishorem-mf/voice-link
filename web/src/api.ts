@@ -9,6 +9,8 @@ export interface AppConfig {
   profileName?: string;
   businessName?: string;
   isDemo?: boolean;
+  /** Why this client cannot place calls yet, or null when it can. */
+  outboundBlocker?: string | null;
 }
 
 export interface VoiceLinkProfile {
@@ -28,6 +30,10 @@ export interface VoiceLinkProfile {
   telegramChatId?: string;
   /** Throwaway profile for sales demos — safe to re-point alerts on. */
   isDemo?: boolean;
+  /** The CRM prospect this client is, once won and linked. */
+  prospectId?: string;
+  /** How the destination is written when dialling out on this trunk. */
+  dialFormat?: "e164" | "national";
 }
 
 export interface BusinessTypeOption {
@@ -178,6 +184,16 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(p),
     }).then(json<Record<string, any>>),
+  /** Prospects in one tray — used to pick the client a profile belongs to. */
+  crmProspects: (status: string) =>
+    fetch(`/api/crm/prospects?status=${encodeURIComponent(status)}`).then(
+      json<Record<string, any>[]>,
+    ),
+  /** Find one prospect by phone or Instagram handle (single-key lookup). */
+  crmLookup: (q: { phone?: string; instagram?: string }) =>
+    fetch(
+      `/api/crm/lookup?${q.phone ? `phone=${encodeURIComponent(q.phone)}` : `instagram=${encodeURIComponent(q.instagram ?? "")}`}`,
+    ).then(json<{ prospect: Record<string, any> | null }>),
   crmProspect: (id: string) =>
     fetch(`/api/crm/prospects/${id}`).then(
       json<{ prospect: Record<string, any>; events: Record<string, any>[] }>,
@@ -297,7 +313,17 @@ export const api = {
       body: JSON.stringify(p),
     }).then(json<VoiceLinkProfile>),
   businessTypes: () => fetch("/api/business-types").then(json<BusinessTypeOption[]>),
-  updateProfile: (id: string, patch: { businessName?: string; businessType?: string }) =>
+  updateProfile: (
+    id: string,
+    patch: {
+      businessName?: string;
+      businessType?: string;
+      fromNumber?: string;
+      techPrefix?: string;
+      dialFormat?: "e164" | "national";
+      prospectId?: string;
+    },
+  ) =>
     fetch(`/api/profiles/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

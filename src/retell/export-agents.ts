@@ -2,6 +2,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { getRetellApiKey, getRetellBaseUrl } from "./config.js";
+import { listAgents, listPhoneNumbers } from "./lists.js";
 
 /**
  * Snapshot every Retell agent (and the prompt behind it) to a JSON file.
@@ -26,8 +27,10 @@ async function get<T>(path: string): Promise<T> {
 }
 
 export async function exportAgents(): Promise<string> {
-  const agents = await get<any[]>("/list-agents");
-  const numbers = await get<any[]>("/list-phone-numbers");
+  // Chat agents are snapshotted too — this is a backup, so "everything" is
+  // the only safe scope.
+  const agents = await listAgents<any>("all");
+  const numbers = await listPhoneNumbers<any>();
 
   // Which agents are actually reachable — the difference between "live" and
   // "orphaned" is exactly this binding.

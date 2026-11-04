@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { getRetellApiKey, getRetellBaseUrl } from "../retell/config.js";
+import { listCalls } from "../retell/lists.js";
 import { formatCallMessage, type RetellCallPayload } from "./format.js";
 import { sendTelegram, getTelegramCredentials } from "./telegram.js";
 import { credentialsForAgent, profileCredentials } from "./routing.js";
@@ -68,13 +69,31 @@ function saveStore(store: Store): void {
 }
 
 async function fetchRecentCalls(limit = 20): Promise<RetellCallPayload[]> {
-  const res = await fetch(`${getRetellBaseUrl()}/v2/list-calls`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${getRetellApiKey()}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ limit, sort_order: "descending" }),
-  });
-  if (!res.ok) throw new Error(`list-calls failed (${res.status}): ${await res.text()}`);
-  return (await res.json()) as RetellCallPayload[];
+  return listCalls<RetellCallPayload>({ limit });
+}
+
+/**
+ * Fill in what the list payload no longer carries.
+ *
+ * Retell documents `recording_url` as dropped from list payloads but still
+ * sends it, so this is usually a no-op — it returns early when the url is
+ * already there. It exists so the recording link, the most-used thing in an
+ * alert, survives the day they finish the job. One request per ALERT, never
+ * per poll, and a failure here must not cost the alert: the un-hydrated call
+ * goes out as-is.
+ */
+async function withRecording(call: RetellCallPayload): Promise<RetellCallPayload> {
+  if (!call.call_id || call.recording_url) return call;
+  try {
+    const res = await fetch(`${getRetellBaseUrl()}/v2/get-call/${encodeURIComponent(call.call_id)}`, {
+      headers: { Authorization: `Bearer ${getRetellApiKey()}` },
+    });
+    if (!res.ok) return call;
+    const full = (await res.json()) as RetellCallPayload;
+    return { ...call, ...full };
+  } catch {
+    return call;
+  }
 }
 
 /** A call still in progress must never be alerted on. */
@@ -147,7 +166,7 @@ export async function pollOnce(): Promise<number> {
       if (!id || known.has(id)) continue;
       if (!isReadyToNotify(call)) continue; // retry on a later cycle
 
-      await notifyCall(call);
+      await notifyCall(await withRecording(call));
       // Record regardless of delivery success: retrying forever against a
       // revoked token would mean an alert storm the moment it's fixed.
       store.notified.push(id);

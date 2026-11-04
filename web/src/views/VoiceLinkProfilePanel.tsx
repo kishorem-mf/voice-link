@@ -28,9 +28,26 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
   const [types, setTypes] = useState<BusinessTypeOption[]>([]);
   const [bizName, setBizName] = useState("");
   const [bizType, setBizType] = useState("");
+  // The client's own DID. Editable here because a client can now be created
+  // before its number is bought — previously a number was required up front,
+  // so there was never anything to change afterwards.
+  const [bizNumber, setBizNumber] = useState("");
+  // Some VoiceLink trunks require a routing prefix in front of the dialled
+  // number (the trunk page shows it as "Tech Prefix"). Most don't.
+  const [bizPrefix, setBizPrefix] = useState("");
+  const [bizDial, setBizDial] = useState<"e164" | "national">("e164");
   const [savingBiz, setSavingBiz] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
   const [bizMsg, setBizMsg] = useState<string | null>(null);
+
+  // Which CRM prospect this client IS. Won prospects are offered as a list
+  // (there are few, and picking beats typing); the lookup box is for finding
+  // one by the two things you actually have to hand — their number or their
+  // Instagram handle.
+  const [wonProspects, setWonProspects] = useState<Record<string, any>[]>([]);
+  const [linkQuery, setLinkQuery] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [linkMsg, setLinkMsg] = useState<string | null>(null);
 
   // This client's Telegram bot. The token is write-only from the browser's
   // point of view — the server never sends it back.
@@ -55,6 +72,7 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
   useEffect(() => {
     load();
     api.businessTypes().then(setTypes).catch(() => setTypes([]));
+    void loadWon();
   }, []);
 
   // Track the selected profile's identity fields.
@@ -62,10 +80,15 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
     const p = profiles.find((x) => x.id === selected);
     setBizName(p?.businessName ?? "");
     setBizType(p?.businessType ?? "general");
+    setBizNumber(p?.fromNumber ?? "");
+    setBizPrefix(p?.techPrefix ?? "");
+    setBizDial(p?.dialFormat ?? "e164");
     setBizMsg(null);
     setTgToken("");
     setTgChat("");
     setTgMsg(null);
+    setLinkMsg(null);
+    setLinkQuery("");
   }, [selected, profiles]);
 
   async function switchProfile() {
@@ -80,7 +103,9 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
           ? `Switched to ${who}. ${r.profile.fromNumber} now answers as ${who}.`
           : r.claimError
             ? `Switched to ${who}, but the number could not be re-pointed: ${r.claimError}`
-            : `Switched to ${who} (${r.profile.fromNumber}).`,
+            : r.profile.fromNumber
+              ? `Switched to ${who} (${r.profile.fromNumber}).`
+              : `Switched to ${who}. No number assigned yet — add its DID below, then Import and Provision.`,
       );
       load(selected);
       onChanged?.();
@@ -137,13 +162,70 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
     setSavingBiz(true);
     setBizMsg(null);
     try {
-      await api.updateProfile(selected, { businessName: bizName, businessType: bizType });
+      const numberChanged = bizNumber.trim() !== (selectedProfile?.fromNumber ?? "");
+      await api.updateProfile(selected, {
+        businessName: bizName,
+        businessType: bizType,
+        fromNumber: bizNumber,
+        techPrefix: bizPrefix,
+        dialFormat: bizDial,
+      });
       load(selected);
-      setBizMsg("Saved. Rebuild the agents below to apply the new persona.");
+      setBizMsg(
+        numberChanged && bizNumber.trim()
+          ? "Saved. Now press Import, then Set up this client's agents, to make this number answer as them."
+          : "Saved. Rebuild the agents below to apply the new persona.",
+      );
     } catch (e) {
       setBizMsg(`❌ ${(e as Error).message}`);
     } finally {
       setSavingBiz(false);
+    }
+  }
+
+  async function loadWon() {
+    try {
+      setWonProspects(await api.crmProspects("won"));
+    } catch {
+      /* CRM unreachable — the lookup box still works, and linking is optional */
+    }
+  }
+
+  async function linkProspect(prospectId: string) {
+    setLinking(true);
+    setLinkMsg(null);
+    try {
+      const p = await api.updateProfile(selected, { prospectId });
+      setProfiles((list) => list.map((x) => (x.id === p.id ? p : x)));
+      setLinkMsg(prospectId ? "✅ Linked." : "Unlinked.");
+      onChanged?.();
+    } catch (e) {
+      setLinkMsg(`❌ ${(e as Error).message}`);
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  /** Find a prospect by phone or Instagram handle, then link it. */
+  async function lookupAndLink() {
+    const q = linkQuery.trim();
+    if (!q) return;
+    setLinking(true);
+    setLinkMsg(null);
+    try {
+      // A leading + means a phone number; anything else is treated as a handle.
+      const r = await api.crmLookup(q.startsWith("+") ? { phone: q } : { instagram: q });
+      if (!r.prospect) {
+        setLinkMsg(`No prospect found for "${q}".`);
+        return;
+      }
+      await linkProspect(r.prospect.prospectId);
+      setLinkQuery("");
+      void loadWon();
+    } catch (e) {
+      setLinkMsg(`❌ ${(e as Error).message}`);
+    } finally {
+      setLinking(false);
     }
   }
 
@@ -204,7 +286,10 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
   const provisioned = Boolean(selectedProfile?.outboundAgentId && selectedProfile?.inboundAgentId);
   const bizDirty =
     bizName !== (selectedProfile?.businessName ?? "") ||
-    bizType !== (selectedProfile?.businessType ?? "general");
+    bizType !== (selectedProfile?.businessType ?? "general") ||
+    bizNumber.trim() !== (selectedProfile?.fromNumber ?? "") ||
+    bizPrefix.trim() !== (selectedProfile?.techPrefix ?? "") ||
+    bizDial !== (selectedProfile?.dialFormat ?? "e164");
 
   return (
     <div className="panel">
@@ -221,7 +306,7 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>
               {p.isDemo ? "🎯 " : ""}
-              {p.name} — {p.fromNumber}
+              {p.name} — {p.fromNumber || "no number yet"}
               {p.id === active ? " (active)" : ""}
             </option>
           ))}
@@ -271,6 +356,66 @@ export function VoiceLinkProfilePanel({ onChanged }: { onChanged?: () => void })
               ))}
             </select>
           </div>
+
+          <div className="row" style={{ marginBottom: 8 }}>
+            <input
+              placeholder="Their VoiceLink number, e.g. +919429397398"
+              value={bizNumber}
+              onChange={(e) => setBizNumber(e.target.value)}
+              style={{ minWidth: 300 }}
+            />
+            <input
+              placeholder="Tech prefix (blank if none)"
+              value={bizPrefix}
+              onChange={(e) => setBizPrefix(e.target.value)}
+              style={{ maxWidth: 190 }}
+            />
+            <select
+              value={bizDial}
+              onChange={(e) => setBizDial(e.target.value as "e164" | "national")}
+              style={{ maxWidth: 230 }}
+            >
+              <option value="e164">Dial as +91… (E.164)</option>
+              <option value="national">Dial as 10 digits</option>
+            </select>
+            <span className="hint" style={{ margin: 0 }}>
+              {selectedProfile.fromNumber
+                ? "The line their callers ring."
+                : "Not bought yet — leave blank until you have the DID."}
+            </span>
+          </div>
+
+          {/* Which prospect in the CRM this client is. Linking brings their
+              trade, city and mobile across instead of retyping them, and is
+              what lets their callers be filed under them rather than under
+              your own sales pipeline. */}
+          <div className="row" style={{ marginBottom: 8 }}>
+            <select
+              value={selectedProfile.prospectId ?? ""}
+              onChange={(e) => void linkProspect(e.target.value)}
+              disabled={linking}
+              style={{ minWidth: 300 }}
+            >
+              <option value="">— not linked to a CRM client —</option>
+              {wonProspects.map((w) => (
+                <option key={w.prospectId} value={w.prospectId}>
+                  {w.businessName}
+                  {w.city ? ` · ${w.city}` : ""}
+                </option>
+              ))}
+            </select>
+            <input
+              placeholder="…or find by +91… or @handle"
+              value={linkQuery}
+              onChange={(e) => setLinkQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && void lookupAndLink()}
+              style={{ minWidth: 220 }}
+            />
+            <button className="primary" onClick={lookupAndLink} disabled={linking || !linkQuery.trim()}>
+              {linking ? "Linking…" : "Find & link"}
+            </button>
+          </div>
+          {linkMsg && <div className="hint" style={{ marginBottom: 8 }}>{linkMsg}</div>}
 
           <div className="row">
             <button className="primary" onClick={saveBusiness} disabled={savingBiz || !bizDirty}>

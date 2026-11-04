@@ -72,7 +72,7 @@
     // call warrants. `deal` only exists once there is money to talk about.
     people: [
       { d:0, i:"PN", c:"#13A86C", since:2, fups:0, holdDates:["2026-12-14"],
-        name:"Priya Nair", num:"+91 98765 4••10", when:"4m",
+        dur:"2:41", name:"Priya Nair", num:"+91 98765 4••10", when:"4m",
         tag:"14 Dec · wedding", out:{t:"Date held", k:"book"},
         call:[["Date","14 Dec 2026"],["Type","Wedding + reception"],["Venue","Taj Krishna, Hyderabad",1],
               ["Coverage","2 days"],["Guests","600"],["Their budget","₹1.8–2.2L"]],
@@ -83,7 +83,7 @@
                  { k:"enquiry", d:0, note:"Inbound call while shooting" } ] },
 
       { d:0, i:"RI", c:"#C05F3B", since:0, fups:0, holdDates:["2026-12-15"],
-        name:"Rahul Iyer", num:"+91 99590 7••14", when:"3h",
+        dur:"1:58", name:"Rahul Iyer", num:"+91 99590 7••14", when:"3h",
         tag:"15 Dec · wedding", out:{t:"Date held", k:"book"},
         call:[["Date","15 Dec 2026"],["Type","Wedding"],["Venue","Not fixed",1],
               ["Coverage","1 day"],["Guests","350"],["Their budget","₹1.2–1.5L"]],
@@ -93,7 +93,7 @@
         events:[ { k:"held", d:0, note:"15 Dec held for 48 hours" } ] },
 
       { d:1, i:"KR", c:"#8A7E72", since:1, fups:0, holdDates:["2027-01-09"],
-        name:"Kavya Reddy", num:"+91 94400 2••17", when:"1d",
+        dur:"2:12", name:"Kavya Reddy", num:"+91 94400 2••17", when:"1d",
         tag:"9 Jan · wedding", out:{t:"Date held", k:"book"},
         call:[["Date","9 Jan 2027"],["Type","Wedding"],["Venue","Ramoji, Hyderabad",1],
               ["Coverage","1 day"],["Guests","400"],["Their budget","₹1.2–1.5L"]],
@@ -103,7 +103,7 @@
         events:[ { k:"held", d:1, note:"9 Jan held" } ] },
 
       { d:0, i:"AK", c:"#C79440", since:0, fups:0,
-        name:"Arjun Kumar", num:"+91 90123 8••42", when:"21m",
+        dur:"1:34", name:"Arjun Kumar", num:"+91 90123 8••42", when:"21m",
         tag:"Pre-wedding", out:{t:"New enquiry", k:"new"},
         call:[["Date","Flexible · February"],["Type","Pre-wedding shoot"],["Venue","Outdoor — Araku",1],
               ["Coverage","1 day"],["Guests","—"],["Their budget","₹35–45k"]],
@@ -113,7 +113,7 @@
         events:[ { k:"enquiry", d:0, note:"Inbound call — no date yet" } ] },
 
       { d:8, i:"NR", c:"#C05F3B", since:9, fups:3,
-        name:"Nikhil Rao", num:"+91 98490 3••55", when:"8d",
+        dur:"3:06", name:"Nikhil Rao", num:"+91 98490 3••55", when:"8d",
         tag:"Mar · reception", out:{t:"Chasing", k:"callback"},
         call:[["Date","Undecided · March"],["Type","Reception"],["Venue","Not fixed",1],
               ["Coverage","4 hours"],["Guests","250"],["Their budget","₹50–70k"]],
@@ -128,7 +128,7 @@
                  { k:"enquiry",  d:8, note:"Inbound call" } ] },
 
       { d:11, i:"FQ", c:"#C79440", since:4, fups:2,
-        name:"Farhan Qureshi", num:"+91 81060 4••28", when:"11d",
+        dur:"2:27", name:"Farhan Qureshi", num:"+91 81060 4••28", when:"11d",
         tag:"Jan · pre-wedding", out:{t:"Awaiting decision", k:"callback"},
         call:[["Date","Jan · flexible"],["Type","Pre-wedding"],["Venue","Goa",1],
               ["Coverage","2 days"],["Guests","—"],["Their budget","Under ₹30k"]],
@@ -140,7 +140,7 @@
                  { k:"quote",    d:9, note:"Quoted ₹48,000 incl. travel" } ] },
 
       { d:3, i:"SR", c:"#8A7E72", since:3, fups:1,
-        name:"Sneha Rao", num:"+91 76540 1••90", when:"3d",
+        dur:"2:03", name:"Sneha Rao", num:"+91 76540 1••90", when:"3d",
         tag:"22 Jan · reception", out:{t:"Quote sent", k:"new"},
         call:[["Date","22 Jan 2027"],["Type","Reception only"],["Venue","Novotel, HICC",1],
               ["Coverage","6 hours"],["Guests","350"],["Their budget","₹80k–1L"]],
@@ -151,7 +151,7 @@
         events:[ { k:"quote", d:3, note:"Quoted ₹95,000 · advance ₹30,000" } ] },
 
       { d:2, i:"VM", c:"#C05F3B", since:2, fups:1,
-        name:"Vikram Menon", num:"+91 99000 5••71", when:"2d",
+        dur:"3:18", name:"Vikram Menon", num:"+91 99000 5••71", when:"2d",
         tag:"9 Dec · wedding", out:{t:"In negotiation", k:"callback"},
         call:[["Date","9 Dec 2026"],["Type","Wedding"],["Venue","Taj Deccan",1],
               ["Coverage","1 day"],["Guests","300"],["Their budget","₹1–1.2L"]],
@@ -163,7 +163,7 @@
                  { k:"enquiry", d:3, note:"Asked about 8 Dec — booked, offered the 9th" } ] },
 
       { d:34, i:"IN", c:"#13A86C", since:6, fups:2,
-        name:"Ishaan & Nidhi", num:"+91 98490 1••22", when:"5w",
+        dur:"4:02", name:"Ishaan & Nidhi", num:"+91 98490 1••22", when:"5w",
         tag:"6–7 Dec · wedding", out:{t:"Confirmed", k:"book"},
         deal:{ dates:["2026-12-06","2026-12-07"], slot:"Full day",
                quoted:"₹2,40,000", advanceDue:"₹80,000", advancePaid:"₹80,000", paidOn:"2 Sep · UPI" },
@@ -176,7 +176,7 @@
                  { k:"quote",   d:34, note:"Quoted ₹2,40,000" } ] },
 
       { d:40, i:"RS", c:"#13A86C", since:11, fups:1,
-        name:"Rohit & Sana", num:"+91 90000 4••18", when:"6w",
+        dur:"2:55", name:"Rohit & Sana", num:"+91 90000 4••18", when:"6w",
         tag:"8 Dec · wedding", out:{t:"Confirmed", k:"book"},
         deal:{ dates:["2026-12-08"], slot:"Full day",
                quoted:"₹1,60,000", advanceDue:"₹50,000", advancePaid:"₹50,000", paidOn:"26 Aug · bank" },
@@ -188,7 +188,7 @@
                  { k:"advance", d:39, note:"Advance ₹50,000 received" } ] },
 
       { d:20, i:"AT", c:"#13A86C", since:4, fups:1,
-        name:"Aarav & Tara", num:"+91 73400 8••05", when:"3w",
+        dur:"2:19", name:"Aarav & Tara", num:"+91 73400 8••05", when:"3w",
         tag:"13 Dec · reception", out:{t:"Confirmed", k:"book"},
         deal:{ dates:["2026-12-13"], slot:"Evening",
                quoted:"₹70,000", advanceDue:"₹20,000", advancePaid:"₹20,000", paidOn:"16 Sep · UPI" },
@@ -199,7 +199,7 @@
         events:[ { k:"advance", d:20, note:"Advance ₹20,000 received" } ] },
 
       { d:48, i:"KL", c:"#13A86C", since:9, fups:3,
-        name:"Karthik & Leela", num:"+91 81420 6••77", when:"7w",
+        dur:"3:44", name:"Karthik & Leela", num:"+91 81420 6••77", when:"7w",
         tag:"20–21 Dec · wedding", out:{t:"Confirmed", k:"book"},
         deal:{ dates:["2026-12-20","2026-12-21"], slot:"Full day",
                quoted:"₹3,10,000", advanceDue:"₹1,00,000", advancePaid:"₹1,00,000", paidOn:"19 Aug · bank" },
@@ -210,7 +210,7 @@
         events:[ { k:"won", d:47, note:"Booking confirmed for 20–21 Dec" } ] },
 
       { d:26, i:"DS", c:"#C05F3B", since:14, fups:4,
-        name:"Divya & Sameer", num:"+91 82345 7••45", when:"4w",
+        dur:"2:08", name:"Divya & Sameer", num:"+91 82345 7••45", when:"4w",
         tag:"Nov · engagement", out:{t:"Lost — budget", k:"info"},
         call:[["Date","14 Nov 2026"],["Type","Engagement"],["Venue","Park Hyatt",1],
               ["Coverage","6 hours"],["Guests","150"],["Their budget","Under ₹40k"]],
@@ -221,17 +221,17 @@
                  { k:"followup", d:20, note:"4th follow-up" } ] },
 
       { d:0, i:"SM", c:"#13A86C", since:0, fups:0,
-        partner:true, name:"Shruti — Wedding Planner", num:"+91 99000 5••01", when:"1h",
-        tag:"Planner · Hyderabad", out:{t:"6 weddings sent", k:"book"},
-        call:[["Role","Wedding planner"],["Based","Hyderabad"],["Sent you","6 weddings",1],
-              ["Last referral","Aug 2026"],["Arrangement","None — mutual"],["Value","₹9.4L booked"]],
+        partner:true, dur:"1:47", name:"Shruti — Wedding Planner", num:"+91 99000 5••01", when:"1h",
+        tag:"Planner · first contact", out:{t:"New collaboration", k:"new"},
+        call:[["Role","Wedding planner"],["Based","Hyderabad"],["Weddings a year","About 25",1],
+              ["Relationship","First contact"],["Asking about","Working together"],["Found you","A venue passed on your name"]],
         said:"“I’ve got a December couple looking for candid — are you open the second week?”",
-        timeline:[ { k:"sara", ago:"1h ago", what:"Answered, checked Dec week 2 — 3 dates open." },
+        timeline:[ { k:"sara", ago:"1h ago", what:"Answered. New planner — took their scale and what they want." },
                    { k:"next", due:2, ago:"in 2 days", what:"Send December availability." } ],
         events:[] },
 
       { d:3, i:"RB", c:"#13A86C", since:0, fups:0,
-        partner:true, name:"Rhea — Makeup Artist", num:"+91 73920 6••88", when:"3d",
+        partner:true, dur:"1:22", name:"Rhea — Makeup Artist", num:"+91 73920 6••88", when:"3d",
         tag:"Bridal makeup", out:{t:"2 weddings sent", k:"new"},
         call:[["Role","Bridal makeup artist"],["Based","Hyderabad"],["Sent you","2 weddings",1],
               ["Last referral","Jun 2026"],["Arrangement","None — mutual"],["Value","₹2.6L booked"]],
@@ -239,8 +239,27 @@
         timeline:[ { k:"sara", ago:"3 days ago", what:"Answered, saved the January lead." } ],
         events:[] },
 
+      { d:2, i:"NH", c:"#13A86C", since:0, fups:0,
+        partner:true, cat:"collab", sub:"Hair stylist", dur:"1:39", name:"Nisha — Hair Stylist", num:"+91 98851 3••09", when:"2d",
+        tag:"Bridal hair", out:{t:"6 weddings sent", k:"book"},
+        call:[["Role","Bridal hair stylist"],["Based","Hyderabad"],["Sent you","6 weddings",1],
+              ["Last referral","Sep 2026"],["Arrangement","None — mutual"],["Value","₹7.8L booked"]],
+        said:"“I’m with the bride from six in the morning — I’ll put your name in before the photographer question even comes up.”",
+        timeline:[ { k:"sara", ago:"2 days ago", what:"Answered, saved two December leads." },
+                   { k:"next", due:4, ago:"in 4 days", what:"Share December availability." } ],
+        events:[] },
+
+      { d:5, i:"CK", c:"#13A86C", since:0, fups:0,
+        partner:true, cat:"collab", sub:"Caterer", dur:"1:15", name:"Kiran — Spice Route Catering", num:"+91 94900 8••37", when:"5d",
+        tag:"Catering · Hyderabad", out:{t:"2 weddings sent", k:"new"},
+        call:[["Role","Wedding caterer"],["Based","Hyderabad"],["Sent you","2 weddings",1],
+              ["Last referral","Jul 2026"],["Arrangement","None — mutual"],["Value","₹3.1L booked"]],
+        said:"“We do forty weddings a season. Couples always ask us who shoots well.”",
+        timeline:[ { k:"sara", ago:"5 days ago", what:"Answered, saved the catering contact." } ],
+        events:[] },
+
       { d:1, i:"RD", c:"#13A86C", since:0, fups:0,
-        partner:true, name:"Ramesh — Decor", num:"+91 90000 7••63", when:"1d",
+        partner:true, dur:"1:51", name:"Ramesh — Decor", num:"+91 90000 7••63", when:"1d",
         tag:"Decor · Hyderabad", out:{t:"3 weddings sent", k:"new"},
         call:[["Role","Wedding decor"],["Based","Hyderabad"],["Sent you","3 weddings",1],
               ["Last referral","Sep 2026"],["Arrangement","None — mutual"],["Value","₹4.1L booked"]],
@@ -249,12 +268,12 @@
         events:[] },
 
       { d:0, i:"TM", c:"#13A86C", since:0, fups:0,
-        partner:true, name:"Tejas — Falaknuma Events", num:"+91 96180 2••74", when:"12m",
-        tag:"Venue · panel", out:{t:"Panel enquiry", k:"new"},
-        call:[["Role","Venue — Falaknuma"],["Based","Hyderabad"],["Sent you","—",1],
-              ["Last referral","—"],["Arrangement","Panel — pending"],["Value","—"]],
+        partner:true, dur:"2:06", name:"Tejas — Falaknuma Events", num:"+91 96180 2••74", when:"12m",
+        tag:"Venue · first contact", out:{t:"New collaboration", k:"new"},
+        call:[["Role","Venue — Falaknuma Palace"],["Based","Hyderabad"],["Weddings a year","About 40",1],
+              ["Relationship","First contact"],["Asking about","Their photographer panel"],["Found you","Instagram"]],
         said:"“We host about 40 weddings a year. Can we put you on our panel?”",
-        timeline:[ { k:"sara", ago:"12m ago", what:"Answered, saved the panel enquiry." },
+        timeline:[ { k:"sara", ago:"12m ago", what:"Answered. New vendor — took their scale and what they want." },
                    { k:"next", due:1, ago:"tomorrow", what:"Call back about the panel." } ],
         events:[] }
     ]
@@ -614,6 +633,19 @@
   .toast.on{opacity:1;transform:translate(-50%,0)}
 
   .cfilt{margin:10px 0 2px}
+  /* The recording is the proof behind everything else on this screen, so it
+     sits above all of it. */
+  .player{display:flex;align-items:center;gap:12px;background:var(--ink);border-radius:18px;
+          padding:13px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .playbtn{width:40px;height:40px;border-radius:50%;border:none;flex:0 0 auto;cursor:pointer;
+           background:var(--brand);color:#fff;font-size:14px;line-height:40px;padding:0}
+  .ptrack{flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden}
+  .pbar{height:100%;width:0;border-radius:99px;background:var(--brand);transition:width .25s linear}
+  .ptime{flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums}
+  .ptime b{display:block;font-size:13px;font-weight:800;color:#F3EFE8}
+  .ptime span{display:block;font-size:10.5px;color:#8ED4B2;font-weight:700;margin-top:1px}
+  .rowdur{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;
+          color:var(--brand-deep);background:var(--brand-tint);padding:2px 7px;border-radius:999px;margin-top:4px}
   .fromcall{background:var(--brand-tint);color:var(--brand-deep);border-radius:14px;padding:12px 14px;
             font-size:12.5px;font-weight:600;line-height:1.45;margin-bottom:12px}
   .fromcall b{font-weight:800}
@@ -798,6 +830,12 @@
       </div>
     </div>
 
+    <div class="player" id="sh-player">
+      <button class="playbtn" id="playBtn" aria-label="Play recording">▶</button>
+      <div class="ptrack"><div class="pbar" id="pbar"></div></div>
+      <div class="ptime"><b id="pnow">0:00</b><span id="pdur"></span></div>
+    </div>
+
     <div class="fromcall" id="sh-callonly" style="display:none">
       📞 This is the call record. Log activity and move the enquiry on from the <b>Bookings</b> tab.
     </div>
@@ -863,8 +901,11 @@
     el.textContent = msg; el.classList.add("on");
     clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 2600);
   }
-  const CHIPS = { customer:"Customer", collab:"Collab", prospect:"Prospect" };
-  const chipOf = s => ({ chip: CHIPS[s] || "Prospect" });
+  // Keyed on what segOf() actually returns. The old keys were left over from
+  // the customer/collab model, so every caller fell through to "Prospect" —
+  // including the planners and venues.
+  const CHIPS = { open:"Enquiry", confirmed:"Booked", lost:"Lost", partners:"Partner" };
+  const chipOf = s => ({ chip: CHIPS[s] || "Enquiry" });
 
   /** "today", "3 days ago", "2 months ago" — from a days-ago number. */
   function agoLabel(d) {
@@ -949,7 +990,7 @@
             <span class="chip c-${segOf(p)}">${(chipOf(segOf(p)) || CFG.prospectChip).chip}</span>
             <span class="chip c-tag">${p.tag}</span>
           </div></div>
-        <div class="time">${p.when}</div>
+        <div class="time">${p.when}<div class="rowdur">▶ ${p.dur || ""}</div></div>
       </div>`).join("")
       : '<div class="empty">No calls in this period.</div>';
     bindOpen();
@@ -1100,7 +1141,14 @@
           <div class="jsub">${p.tag}${p.fups ? " · " + ordinal(p.fups) + " follow-up" : ""}</div>
         </div>
         ${partner
-          ? `<div class="jage"><b>${p.out.t.split(" ")[0]}</b><span>weddings sent</span></div>`
+          ? (() => {
+              // Most partners have sent you a number of weddings; one is still
+              // only an enquiry, and "Panel weddings sent" reads as nonsense.
+              const n = p.out.t.split(" ")[0];
+              return /^\d+$/.test(n)
+                ? `<div class="jage"><b>${n}</b><span>weddings sent</span></div>`
+                : `<div class="jage"><b>—</b><span>${p.out.t.toLowerCase()}</span></div>`;
+            })()
           : booked
           ? `<div class="jage"><b>${(p.deal && p.deal.advancePaid) || "—"}</b><span>advance in</span></div>`
           : (() => {
@@ -1155,8 +1203,39 @@
     }).join("");
   }
 
+  /** Seconds from "2:41". */
+  const secsOf = d => { const [m, s2] = String(d || "0:00").split(":").map(Number); return m * 60 + s2; };
+  const clock  = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+
+  let playTimer = null, playAt = 0;
+
+  function stopPlayback() {
+    clearInterval(playTimer); playTimer = null; playAt = 0;
+    document.getElementById("playBtn").textContent = "▶";
+    document.getElementById("pbar").style.width = "0%";
+    document.getElementById("pnow").textContent = "0:00";
+  }
+
+  function togglePlayback() {
+    const total = secsOf((CFG.people[openIdx] || {}).dur);
+    if (playTimer) {                       // pause where it is
+      clearInterval(playTimer); playTimer = null;
+      document.getElementById("playBtn").textContent = "▶";
+      return;
+    }
+    document.getElementById("playBtn").textContent = "❚❚";
+    playTimer = setInterval(() => {
+      playAt += 1;
+      if (playAt >= total) { stopPlayback(); return; }
+      document.getElementById("pnow").textContent = clock(playAt);
+      document.getElementById("pbar").style.width = (playAt / total * 100) + "%";
+    }, 1000);
+  }
+
   function openSheet(i) {
     openIdx = i;
+    stopPlayback();
+    document.getElementById("pdur").textContent = CFG.people[i].dur || "—";
     // Calls is a log of what came in; Bookings is where it is worked.
     const fromCalls = document.getElementById("view-calls").classList.contains("active");
     document.getElementById("sh-callonly").style.display = fromCalls ? "" : "none";
@@ -1182,7 +1261,7 @@
 
     sheet.classList.add("on"); scrim.classList.add("on"); sheet.scrollTop = 0;
   }
-  function close(){ sheet.classList.remove("on"); scrim.classList.remove("on"); }
+  function close(){ stopPlayback(); sheet.classList.remove("on"); scrim.classList.remove("on"); }
   function bindOpen(){
     document.querySelectorAll("[data-i]").forEach(el => {
       if (el.dataset.bound) return;
@@ -1385,6 +1464,7 @@
   document.addEventListener("click", (ev) => {
     const hit = sel => ev.target.closest(sel);
     try {
+      if (hit("#playBtn"))   { togglePlayback(); return; }
       if (hit("#st-submit")) { submitLog(); return; }
 
       const did = hit("#st-grid .pick");

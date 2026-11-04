@@ -1,78 +1,208 @@
-# VoiceLink Support Request — ElevenLabs Outbound Not Connecting
+# VoiceLink Support — inbound drops at 32s: the ACK is missing its Route set
 
-**Account:** Nanda Kishore (kishorem.mf@gmail.com) — Reseller/Client, Trial Pack
-**Trunk:** `ELEVENLABS-IN.nanda kishore`
-**DID:** +919429391391
+**Account:** Nanda Kishore (<account email>) — client `kishorehotmail`
+**Trunk:** `RETELL.nanda kishore` · **DID:** +919429490490 (and previously …0345)
+**Their switch:** `Asterisk PBX 18.21.0-vici` behind a Kamailio-style proxy
 
----
-
-## Ready-to-send message (CURRENT ISSUE — SIP 603 Declined)
-
-> **Subject: Outbound calls returning SIP 603 Declined on all numbers — trunk ELEVENLABS-IN (DID +919429391391)**
->
-> Hi VoiceLink support,
->
-> Outbound calls through my SIP trunk `ELEVENLABS-IN.nanda kishore` (DID **+919429391391**) have started **failing with SIP 603 Declined on every destination number**, and I'd like help identifying why.
->
-> **Account:** Nanda Kishore (kishorem.mf@gmail.com) — Reseller/Client, Trial Pack.
-> **Integration:** ElevenLabs Conversational AI → my trunk. Outbound address `160.30.71.89:3300`, Transport TCP. Dialing plain E.164 (e.g. +917842160862).
->
-> **What's happening**
-> - A call on **12 Jul 2026 at 08:53 IST connected successfully** (66-second conversation).
-> - Since this afternoon, **all outbound calls return SIP 603 Declined** before ringing — same behaviour on two different destination numbers.
-> - **Account balance is sufficient** (already checked). No call is in progress (single channel is free). Nothing changed in my configuration since the successful morning call.
->
-> **Reference call IDs (all SIP 603):** `conv_9401kxb6755mfhwsewwxx7vat9n4`, `conv_4701kxb6c19xffxas39z0p9f27jf`, `conv_2101kxd4m1nrf8c8wsn4yc6wtvgw`.
->
-> **My questions**
-> 1. Is the DID **+919429391391 flagged, throttled, or blocked** for outbound (e.g. spam/anti-fraud after several calls today)? If so, how do I clear it and what's the daily limit?
-> 2. Is there a **Trial-Pack daily call/attempt cap** independent of balance?
-> 3. This DID is a standard mobile number, **not on a DLT 140/160 series** — is that causing the operator to decline/throttle outbound telemarketing-pattern calls? Do I need a **DLT-registered 140-series DID** to place these calls reliably?
-> 4. Is there any **time-of-day or day-of-week (e.g. Sunday) restriction** applied to this trunk?
-> 5. What are the exact steps to get a **compliant outbound-capable DID + adequate channels/CPS** for production volume?
->
-> Thanks for your help.
+**Diagnosed from the packet capture. This is a SIP routing fault on VoiceLink's
+side, confirmed in their own engineer's test call.**
 
 ---
 
-## Earlier message (setup-phase — IP whitelisting / dial format)
+## Ready-to-send reply to Jeet
 
-> **Subject: Outbound calls via ELEVENLABS-IN trunk failing — need IP whitelisting / dial-format confirmation**
+> Hi Jeet — I pulled the packet capture for **your own test call**
+> (`call_fc6f96d5c1a08db4d6a1378f419`, from 85XXXXXX81 at 13:23). It shows
+> exactly what is happening, and it is in the SIP signalling, not the bot.
 >
-> Hi VoiceLink support,
+> **The ACK to our 200 OK never reaches the server that sent it.**
 >
-> I'm integrating ElevenLabs Conversational AI with my SIP trunk `ELEVENLABS-IN.nanda kishore` (DID +919429391391) for outbound calls, following your ElevenLabs integration guide. Signaling reaches your server but calls don't complete. Details:
+> Here is the ladder from the capture:
 >
-> **My config**
-> - Outbound address: `160.30.71.89:3300`, Transport: **TCP**, Media encryption: disabled
-> - Tech prefix: `45454`
-> - ElevenLabs account: **standard/global** (outbound calls originate from ElevenLabs' dynamic **US** IP addresses)
+> ```
+> 0.000s  You  → Us    INVITE sip:919429490490@18.98.16.122:5060
+> 0.182s  Us   → You   200 OK   (Contact: <sip:retell@172.31.40.58:5060;transport=tcp>)
+> 0.462s  You  → Us    ACK sip:retell@172.31.40.58:5060;transport=tcp   ← no Route header
+> 0.683s  Us   → You   200 OK   (retransmit — we never saw the ACK)
+> 4.684s  Us   → You   200 OK   (retransmit)
+> 8.685s  Us   → You   200 OK   (retransmit)
+>   …      every 4 seconds …
+> 28.687s Us   → You   200 OK   (final retransmit)
+> ~32.2s                        Timer H expires → dialog torn down
+> ```
 >
-> **What I'm seeing (test target +917842160862)**
-> | Number sent to trunk | Result |
-> |---|---|
-> | `+917842160862` (plain E.164) | SIP **404 Not Found** — but the phone *rang* and dropped on answer |
-> | `45454917842160862` (prefix + 91 + national) | SIP **404 Not Found** |
-> | `4545407842160862` (prefix + 0 + national) | **Accepted** (call went "in-progress") but the phone **never rang**, 0s duration |
+> **The cause.** Our 200 OK carries three `Record-Route` headers:
 >
-> **My questions**
-> 1. **IP whitelisting:** My outbound calls come from ElevenLabs' dynamic US IPs. Your docs say you require a static IP to whitelist. Can you whitelist ElevenLabs' outbound IP ranges on your side so a **global** (non-India-residency) ElevenLabs account can place calls? If so, what source IPs/ranges do you need from me, and where do I submit them?
-> 2. **India residency:** Your docs recommend an ElevenLabs **India-residency** account (in.residency.elevenlabs.io) since Indian IPs are pre-allowed — but that portal **won't load** for me. Is there an alternative, or can you help me get access/provisioned?
-> 3. **Exact dial format:** What is the exact destination-number format the `ELEVENLABS-IN` trunk expects? I get 404 even with `45454` + `91` + national (matching your doc example). Only `45454` + `0` + national is accepted, but that call never reaches the phone.
-> 4. **Tech prefix handling:** Should `45454` be embedded in the dialed number, or is it auto-applied on your side based on my account/source IP?
-> 5. **Call routing:** Please confirm the DID +919429391391 → `ELEVENLABS-IN` trunk routing is active for outbound.
+> ```
+> Record-Route: <sip:18.98.16.122:5060;transport=tcp;r2=on;lr>
+> Record-Route: <sip:18.98.16.122;r2=on;lr>
+> Record-Route: <sip:10.0.25.168:34222;lr;did=ad1.bb32b113>
+> ```
 >
-> Thanks!
+> Under RFC 3261 §12.1.2 and §16.6, your side must build a route set from those
+> headers and send the ACK with the corresponding **`Route:` headers**. Your
+> ACK has **no Route header at all** — here it is verbatim from the capture:
+>
+> ```
+> ACK sip:retell@172.31.40.58:5060;transport=tcp SIP/2.0
+> Via: SIP/2.0/UDP 10.0.25.168:34222;branch=z9hG4bK8a.ab9a44a7.2
+> Via: SIP/2.0/UDP 10.0.25.44:3300;branch=z9hG4bK8a.98d68c16.2
+> Max-Forwards: 68
+> From: <sip:85XXXXXX81@10.0.25.118:34222>;tag=as292f11d2
+> To: <sip:919429490490@10.0.25.44:3300>;tag=66c59ebf-dec8-474c-8b34-df11eacdb3a1
+> Contact: <sip:85XXXXXX81@160.30.71.108:3300;did=ad1.70e4fe1>
+> Call-ID: 586b249958f7d1450c273d404509bc00@10.0.25.118:34222
+> CSeq: 102 ACK
+> User-Agent: Asterisk PBX 18.21.0-vici
+> Content-Length: 0
+> ```
+>
+> With no route set, the only forwarding instruction left is the Request-URI —
+> `172.31.40.58`, which is our **internal** address and not routable from
+> outside. So the ACK stops at our edge and never reaches the media server that
+> sent the 200 OK. That server keeps retransmitting, Timer H (64 × T1 = 32s)
+> expires, and the dialog is torn down. **Hence exactly 32.5 seconds, every
+> call.**
+>
+> **Why audio is perfect right up to the cut.** Media is negotiated separately
+> — our SDP points at `3.42.144.134:50708` — so RTP flows normally the whole
+> time and the call sounds fine until the signalling layer gives up. This is
+> why it looks like "the bot stopped": the bot was mid-sentence ("Got it,
+> November 29th. Could you ▌") when the dialog was torn down underneath it.
+>
+> **Why outbound is unaffected.** On outbound we send the INVITE and the ACK
+> ourselves, so your route set is never involved. Our outbound call on this
+> same trunk ran 55.7 seconds with no problem.
+>
+> **A second, smaller deviation.** Your ACK rewrites the To-header URI from
+> `<sip:919429490490@18.98.16.122:5060>` (what we sent in the 200 OK) to
+> `<sip:919429490490@10.0.25.44:3300>`. The tag is preserved so dialog matching
+> still works, but per §12.2.1.1 the To header should be copied unchanged.
+>
+> **The likely cause, and the fix.** Your switch is `Asterisk PBX
+> 18.21.0-vici`, which uses the legacy `chan_sip` driver. `chan_sip` has a
+> long-standing documented behaviour: when `nat=force_rport` is active (the
+> default on many builds), it routes in-dialog requests to the address the
+> response came from and **ignores Record-Route entirely**, building the ACK
+> with the Contact as Request-URI and no Route headers. That is precisely what
+> the capture shows. See Asterisk issue **ASTERISK-21465**, which was closed as
+> a configuration matter with exactly this workaround.
+>
+> **Please try, on this trunk's peer in `sip.conf`:**
+>
+> ```
+> nat=no
+> ```
+>
+> (or `auto_force_rport` on Asterisk 11+). The reporter in ASTERISK-21465
+> confirmed this restored correct ACK routing. If this trunk can be moved to
+> `chan_pjsip` instead, that is the proper long-term fix — `chan_pjsip` honours
+> Record-Route correctly, and `chan_sip` has been unsupported for years.
+>
+> Two capture files are attached — your test call and one of mine. Both show
+> the identical pattern.
 
 ---
 
-## Internal notes (context, not for the message)
+## Internal notes (not for the ticket)
 
-- Root-cause: our ElevenLabs account is **global/standard**, so outbound SIP originates from **dynamic US IPs** VoiceLink hasn't whitelisted → 404. VoiceLink's docs recommend an India-residency ElevenLabs account (Indian IPs pre-allowed, static SIP IPs).
-- **Confirmed via ElevenLabs docs:** India data residency is **Enterprise-only** and a *separate* isolated account with its own API URL + key. Not self-serve — that's why the in.residency portal won't load and our standard key gets 401 there. Requires contacting `sales@elevenlabs.io` / `success@elevenlabs.io`.
-  - India API base URL (confirmed correct): `https://api.in.residency.elevenlabs.io/v1`
-  - India SIP static endpoint: `sip-static.rtc.in.residency.elevenlabs.io`
-- ElevenLabs static whitelistable outbound IPs are also **Enterprise-only**. So both viable paths ultimately require an ElevenLabs Enterprise arrangement.
-- The harness code is ready: `ELEVENLABS_BASE_URL` and `TECH_PREFIX` are configurable, so once we have working credentials/whitelisting it's a `.env` change + re-run `agent:create` → `provision` → `dial`.
-- Diagnostic conversation IDs (global endpoint): `conv_1101kx9d7zh8edr9szn2dc1h0v2s` (404), `conv_6301kx9dg36jfwrs1xm8nqt2x98d` (accepted, no ring).
-- Sources: ElevenLabs Data residency docs; "Introducing India Data Residency for Enterprises" blog.
+**How this was found:** every Retell call record carries a `pcap_url` field
+(alongside `public_log_url` and `recording_url`). It is not in the dashboard UI
+flow but it is in the `GET /v2/get-call/{id}` response, and it is a real
+SIP capture from Retell's edge. That is the whole diagnosis — no dependency on
+VoiceLink's cooperation.
+
+```bash
+curl -s -H "Authorization: Bearer $RETELL_API_KEY" \
+  "$RETELL_BASE_URL/v2/get-call/<call_id>" | jq -r .pcap_url
+```
+
+Parser lives in the scratchpad (`parse_pcap.py`) — plain Python, no tshark
+needed, since SIP is text over UDP/TCP.
+
+**The evidence, ranked:**
+
+1. **The ACK has no Route header.** Load-bearing fact. Verified verbatim on two
+   separate calls (Jeet's and ours), identical in both.
+2. **Nine 200 OK retransmissions** at T1-doubling-to-T2 intervals (0.18, 0.68,
+   4.68, 8.69 … 28.69s) — textbook unacknowledged 2xx.
+3. **Zero ACKs on the internal TCP leg.** The edge receives ACKs over UDP and
+   forwards none of them inward.
+4. **Timer H arithmetic.** 64 × T1 = 32s from the 200 OK at 0.182s → ~32.2s;
+   observed call durations 32.501–32.506s across six calls.
+5. **Media on a different IP** (`3.42.144.134`) from signalling
+   (`18.98.16.122`), which is why audio survives until the teardown.
+
+**Previously ruled out:** `end_call_after_silence_ms` (raised 30s → 120s, next
+call still 32.506s); `max_call_duration_ms` (300000); the specific DID (new DID
+behaves identically); agent/LLM config (failing and working agents are
+byte-identical apart from `llm_id`); IP whitelisting (wrong trail from the
+first draft — do not raise it).
+
+**Retell's share of the blame, for fairness:** advertising an RFC1918 `Contact`
+(`172.31.40.58`) is fragile. Record-Route exists precisely so that this works,
+and a compliant UAC would route the ACK correctly regardless — so the fault is
+VoiceLink's. But if Jeet pushes back, Retell putting a private address in
+Contact is the one thing he can legitimately point at. A known Retell community
+thread reports the same private-Contact behaviour, and separately that their
+gateway rejects **all** mid-dialog re-INVITEs — worth knowing if session timers
+come up later.
+
+**Evidence files:** `docs/evidence/*.pcap` — attach these to the ticket.
+
+---
+
+## The two available fixes (research, 3 Nov 2026)
+
+There are **two independent parties** who can fix this. Lead with the first;
+keep the second in reserve if VoiceLink stalls.
+
+### Fix A — VoiceLink's Asterisk (cheapest, most likely)
+
+Their switch is `Asterisk PBX 18.21.0-vici` (VICIdial), which runs the legacy
+`chan_sip` driver. Two documented `chan_sip` behaviours match our capture
+exactly:
+
+- **`nat=force_rport` makes chan_sip ignore Record-Route.** It routes in-dialog
+  requests to the source address of the response and omits the Route set.
+  [ASTERISK-21465](https://issues-archive.asterisk.org/ASTERISK-21465) was
+  closed as *configuration, not a code bug*, with the workaround `nat=no`
+  (or `auto_force_rport` on Asterisk 11+). The reporter confirmed it fixed ACK
+  routing.
+- **chan_sip routes ACK/BYE by Contact, not Record-Route.** Independently
+  reported on the [Asterisk community forum](https://community.asterisk.org/t/ack-and-bye-to-wrong-target/95974),
+  where the recommendation was to migrate to `chan_pjsip` — "chan_sip is,
+  effectively, no longer supported."
+
+**Ask:** set `nat=no` on the Retell trunk peer, or move the trunk to
+`chan_pjsip`.
+
+### Fix B — Retell's private Contact header
+
+Retell advertises `Contact: <sip:retell@172.31.40.58:5060;transport=tcp>` — an
+RFC1918 address. If they advertised the public `18.98.16.122` instead, even a
+Contact-routing stack would send the ACK somewhere routable.
+
+This is not a fringe complaint. **Twilio treats a private-IP Contact as a
+provider-side defect** and documents the identical failure: *"As Twilio is
+required to send the ACK back to the IP Address in the Contact header, the ACK
+is being sent out to that Private IP Address"*
+([Twilio SIP trunking troubleshooting](https://www.twilio.com/docs/sip-trunking/troubleshooting)).
+A Retell community thread independently reports the same `172.31.x.x` Contact.
+
+**Ask:** Retell support — advertise a publicly routable Contact for BYOC
+inbound, or confirm the expected ACK routing for a trunk behind their edge.
+
+### Honest attribution
+
+Both sides are partly wrong, and it is worth knowing this before the argument
+starts:
+
+| | Position |
+|---|---|
+| **Against VoiceLink** | Record-Route exists precisely so a private Contact is harmless. A compliant UAC builds the route set and the ACK arrives. Theirs does not. |
+| **Against Retell** | Publishing an unroutable Contact is fragile and breaks real-world stacks — Twilio calls it a defect outright. |
+
+Strict RFC 3261 reading favours us, so lead with Fix A. But do not claim
+VoiceLink is *solely* at fault — if Jeet knows his SIP, he will point at the
+172.31 address and he will have a reasonable argument.

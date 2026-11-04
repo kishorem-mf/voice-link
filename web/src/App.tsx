@@ -40,12 +40,18 @@ export function App() {
         {config && (
           <div className="meta">
             {config.profileName && <div>Profile: <code>{config.profileName}</code></div>}
-            <div>Agent: <code>{config.agentId}</code></div>
-            <div>Number: <code>{config.phoneNumberId}</code></div>
+            <div>Agent: <code>{config.agentId || "not provisioned"}</code></div>
+            <div>Number: <code>{config.phoneNumberId || "not assigned yet"}</code></div>
             <div>Endpoint: <code>{config.baseUrl.replace("https://", "")}</code></div>
           </div>
         )}
       </div>
+
+      {config?.outboundBlocker && (
+        <div className="panel error" style={{ marginBottom: 14 }}>
+          ⚠️ {config.outboundBlocker}
+        </div>
+      )}
 
       <div className="tabs">
         {TABS.map((t) => (

@@ -1,4 +1,5 @@
-import { getRetellApiKey, getRetellBaseUrl, getRetellAgentIds } from "./config.js";
+import { getRetellApiKey, getRetellBaseUrl, tryGetRetellAgentIds } from "./config.js";
+import { listCalls } from "./lists.js";
 
 /**
  * Retell call reads — list, detail, and recording — normalized to the same
@@ -63,21 +64,21 @@ async function retell<T>(method: "GET" | "POST", path: string, body?: unknown): 
 /** Recent calls for ALL configured agents (outbound + inbound), newest first. */
 export async function listConversations(limit = 50): Promise<CallSummary[]> {
   // Filter by every synced agent id so BOTH outbound and inbound calls show up.
-  let agentIds: string[] = [];
-  try {
-    agentIds = getRetellAgentIds();
-  } catch {
-    /* no agent configured — list unfiltered */
-  }
-  const raw = await retell<any[]>("POST", "/v2/list-calls", {
-    filter_criteria: agentIds.length ? { agent_id: agentIds } : undefined,
-    sort_order: "descending",
-    limit,
-  });
-  return (raw ?? []).map((c) => ({
+  //
+  // A client with no agents yet gets an EMPTY list, never an unfiltered one.
+  // Listing unfiltered would put every other client's calls on this client's
+  // screen — the cross-client leak routing.ts exists to prevent — and an
+  // unprovisioned client genuinely has no calls of its own to show.
+  const agentIds = tryGetRetellAgentIds();
+  if (agentIds.length === 0) return [];
+  const raw = await listCalls<any>({ limit, agentIds });
+  return raw.map((c) => ({
     conversationId: c.call_id,
     status: normalizeStatus(c.call_status),
     durationSecs: Math.round((c.duration_ms ?? 0) / 1000),
+    // Always 0 from a list: Retell stopped shipping transcripts in list
+    // payloads. The real turn count arrives with the detail fetch when a row
+    // is opened, so the column reads "—" until then rather than lying.
     messageCount: (c.transcript_object ?? []).length,
     startUnix: c.start_timestamp ? Math.round(c.start_timestamp / 1000) : 0,
     direction: c.direction,

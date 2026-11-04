@@ -1,4 +1,4 @@
-import { getRetellConfig, mask } from "./config.js";
+import { getRetellConfig, mask, outboundBlocker } from "./config.js";
 
 /**
  * Retell outbound call trigger (parallel to the ElevenLabs call module).
@@ -20,10 +20,30 @@ export function isE164(number: string): boolean {
   return /^\+[1-9]\d{7,14}$/.test(number);
 }
 
-/** Apply the optional tech prefix (prefix + E.164 digits without "+"). */
-export function formatDialNumber(e164: string, techPrefix: string): string {
-  if (!techPrefix) return e164;
-  return `${techPrefix}${e164.replace(/^\+/, "")}`;
+/**
+ * Shape the destination the way the trunk expects.
+ *
+ * `e164` sends the number as given — the default, and what most trunks want.
+ *
+ * `national` strips the Indian country code and sends the bare 10 digits
+ * (`+917842160862` -> `7842160862`). This is not a stylistic choice: VoiceLink
+ * trunks whose BOT Provider is a PRESET (RETELL, OmniDimension, …) apply the
+ * tech prefix and country code themselves, so anything we add is a second copy
+ * and the call is refused. Verified against this trunk on 2026-11-02 — `+91…`,
+ * `45454`+91+national and `45454`+0+national were all rejected with
+ * `telephony_provider_unavailable`, while the bare 10 digits connected.
+ *
+ * The tech prefix still applies for trunks configured as "Custom", where
+ * nothing is added on their side.
+ */
+export function formatDialNumber(
+  e164: string,
+  techPrefix: string,
+  dialFormat: "e164" | "national" = "e164",
+): string {
+  const national = dialFormat === "national" ? e164.replace(/^\+91/, "") : e164;
+  if (!techPrefix) return national;
+  return `${techPrefix}${national.replace(/^\+/, "")}`;
 }
 
 /** Place one outbound call to `toNumber` (E.164). */
@@ -32,8 +52,14 @@ export async function placeCall(toNumber: string): Promise<RetellCallResult> {
     throw new Error(`Invalid destination "${toNumber}" — must be E.164, e.g. +919429391391.`);
   }
 
-  const { apiKey, baseUrl, agentId, fromNumber, techPrefix } = getRetellConfig();
-  const dialNumber = formatDialNumber(toNumber, techPrefix);
+  // A client set up before its DID was bought has no number to call from, and
+  // one that has never been provisioned has no agent. Both would surface as an
+  // unreadable Retell or env-var error, so say which it is and what to do.
+  const blocker = outboundBlocker();
+  if (blocker) throw new Error(blocker);
+
+  const { apiKey, baseUrl, agentId, fromNumber, techPrefix, dialFormat } = getRetellConfig();
+  const dialNumber = formatDialNumber(toNumber, techPrefix, dialFormat);
   const body: Record<string, unknown> = {
     from_number: fromNumber,
     to_number: dialNumber,
@@ -41,7 +67,7 @@ export async function placeCall(toNumber: string): Promise<RetellCallResult> {
   };
   // If a tech prefix reshapes the number into a non-E.164 string, Retell would
   // otherwise reject it — bypass its validation in that case.
-  if (techPrefix) body.ignore_e164_validation = true;
+  if (techPrefix || dialFormat === "national") body.ignore_e164_validation = true;
 
   let res: Response;
   try {

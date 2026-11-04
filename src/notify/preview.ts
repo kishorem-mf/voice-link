@@ -1,4 +1,5 @@
 import { getRetellApiKey, getRetellBaseUrl } from "../retell/config.js";
+import { listCalls } from "../retell/lists.js";
 import { formatCallMessage, type RetellCallPayload } from "./format.js";
 import { sendTelegram } from "./telegram.js";
 
@@ -20,13 +21,12 @@ async function fetchCall(callId: string): Promise<RetellCallPayload> {
 }
 
 async function fetchRecentCalls(limit = 5): Promise<RetellCallPayload[]> {
-  const res = await fetch(`${getRetellBaseUrl()}/v2/list-calls`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${getRetellApiKey()}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ limit, sort_order: "descending" }),
-  });
-  if (!res.ok) throw new Error(`list-calls failed (${res.status}): ${await res.text()}`);
-  return (await res.json()) as RetellCallPayload[];
+  // The list payload has no recording url, and this previews the real message,
+  // so each call is re-read in full. Fine at a handful of calls.
+  const calls = await listCalls<RetellCallPayload>({ limit });
+  return Promise.all(
+    calls.map((c) => (c.call_id ? fetchCall(c.call_id).catch(() => c) : c)),
+  );
 }
 
 /** Strip Telegram's HTML so the terminal preview is readable. */

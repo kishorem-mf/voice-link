@@ -9,3 +9,5 @@ recordings/
 notified-calls.json
 voicelink-profiles.json
 *.tsbuildinfo
+.env.bak.*
+docs/evidence/
